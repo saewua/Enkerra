@@ -6,81 +6,42 @@
     <meta name="theme-color" content="#e8789a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Enkerra ang' Baby Shop</title>
+    <link rel="manifest" href="/manifest.json">
 
-    <!-- Firebase CDNs -->
+    <!-- CDNs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-
-    <!-- EmailJS -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <style>
+        /* All CSS styles remain the same as previous full code */
         :root {
-            --primary: #e8789a;
-            --primary-dark: #c45d7e;
-            --bg: #fdf6f9;
-            --surface: #fff;
-            --text: #3d2c33;
-            --text-secondary: #6b5b63;
-            --border: #f0d8e0;
-            --success: #4caf84;
-            --warning: #f0a04b;
-            --danger: #e0556a;
-            --radius: 14px;
-            --radius-sm: 8px;
-            --nav-height: 64px;
+            --primary: #e8789a; --primary-dark: #c45d7e; --bg: #fdf6f9; --surface: #fff;
+            --text: #3d2c33; --text-secondary: #6b5b63; --border: #f0d8e0;
+            --success: #4caf84; --warning: #f0a04b; --danger: #e0556a;
+            --radius: 14px; --radius-sm: 8px; --nav-height: 64px;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            padding-bottom: var(--nav-height);
-        }
-        .app-header {
-            position: sticky; top:0; z-index:100;
-            background: var(--surface); border-bottom:1px solid var(--border);
-            padding:0 16px; height:56px;
-            display:flex; align-items:center; justify-content:space-between;
-        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: var(--nav-height); }
+        .app-header { position: sticky; top:0; z-index:100; background: var(--surface); border-bottom:1px solid var(--border); padding:0 16px; height:56px; display:flex; align-items:center; justify-content:space-between; }
         .logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:1.15rem; color:var(--primary-dark); }
         .cart-badge-btn { position:relative; background:none; border:none; font-size:1.5rem; cursor:pointer; }
-        .cart-badge-btn .badge {
-            position:absolute; top:-2px; right:-4px;
-            background:var(--danger); color:white; width:20px; height:20px;
-            border-radius:50%; font-size:0.7rem; display:flex; align-items:center; justify-content:center;
-        }
+        .cart-badge-btn .badge { position:absolute; top:-2px; right:-4px; background:var(--danger); color:white; width:20px; height:20px; border-radius:50%; font-size:0.7rem; display:flex; align-items:center; justify-content:center; }
         .main-content { padding:16px; max-width:900px; margin:0 auto; }
         .screen { display:none; }
         .screen.active { display:block; }
-        .bottom-nav {
-            position:fixed; bottom:0; left:0; right:0; background:var(--surface);
-            border-top:1px solid var(--border); display:flex; height:var(--nav-height); z-index:100;
-        }
-        .bottom-nav button {
-            flex:1; border:none; background:none; cursor:pointer;
-            display:flex; flex-direction:column; align-items:center; justify-content:center;
-            font-size:0.7rem; color:var(--text-secondary);
-        }
+        .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; height:var(--nav-height); z-index:100; }
+        .bottom-nav button { flex:1; border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:0.7rem; color:var(--text-secondary); }
         .bottom-nav button.active { color:var(--primary); font-weight:600; }
-        .btn {
-            display:inline-flex; align-items:center; gap:6px; padding:10px 18px;
-            border-radius:var(--radius-sm); font-weight:600; border:none; cursor:pointer;
-        }
+        .btn { display:inline-flex; align-items:center; gap:6px; padding:10px 18px; border-radius:var(--radius-sm); font-weight:600; border:none; cursor:pointer; }
         .btn-primary { background:var(--primary); color:#fff; }
         .btn-outline { background:var(--surface); color:var(--primary); border:2px solid var(--primary); }
         .btn-sm { padding:6px 12px; font-size:0.78rem; }
         .form-group { margin-bottom:12px; }
         .form-group label { display:block; font-weight:600; font-size:0.8rem; margin-bottom:4px; }
-        .form-group input, .form-group select {
-            width:100%; padding:10px; border:2px solid var(--border); border-radius:var(--radius-sm);
-            background:var(--bg); outline:none;
-        }
+        .form-group input, .form-group select { width:100%; padding:10px; border:2px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); outline:none; }
         .product-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap:10px; }
         .product-card { background:var(--surface); border-radius:var(--radius-sm); padding:10px; cursor:pointer; border:2px solid var(--border); }
         .cart-panel { background:var(--surface); border-radius:var(--radius); padding:14px; margin-top:12px; }
@@ -89,13 +50,8 @@
         @keyframes slideIn { from{transform:translateX(120%);} to{transform:translateX(0);} }
         .login-screen { display:flex; align-items:center; justify-content:center; min-height:80vh; }
         .login-card { background:var(--surface); padding:30px; border-radius:var(--radius); box-shadow:0 8px 24px rgba(0,0,0,0.1); width:100%; max-width:400px; }
-        .filter-bar {
-            display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
-            margin-bottom:16px; background:var(--surface); padding:12px;
-            border-radius:var(--radius-sm); border:1px solid var(--border);
-        }
+        .filter-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px; background:var(--surface); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border); }
         .filter-bar select { padding:8px; border-radius:6px; border:1px solid var(--border); }
-        .filter-bar button { padding:8px 12px; }
     </style>
 </head>
 <body>
@@ -127,7 +83,7 @@
         </div>
     </div>
 
-    <!-- Main App -->
+    <!-- Main App (hidden until login) -->
     <div id="appMain" style="display:none;">
         <header class="app-header">
             <div class="logo"><span>👶</span><span>Enkerra Baby Shop</span></div>
@@ -173,52 +129,21 @@
                 <div id="stockList"></div>
             </div>
 
-            <!-- Dashboard Screen (with filters) -->
+            <!-- Dashboard Screen -->
             <div class="screen" id="screen-dashboard">
                 <h2>📊 Dashboard</h2>
-
-                <!-- Filter bar -->
                 <div class="filter-bar">
-                    <div>
-                        <label style="font-size:0.7rem;">Year</label>
-                        <select id="filterYear"></select>
-                    </div>
-                    <div>
-                        <label style="font-size:0.7rem;">Month</label>
-                        <select id="filterMonth">
-                            <option value="">All</option>
-                            <option value="1">January</option>
-                            <option value="2">February</option>
-                            <option value="3">March</option>
-                            <option value="4">April</option>
-                            <option value="5">May</option>
-                            <option value="6">June</option>
-                            <option value="7">July</option>
-                            <option value="8">August</option>
-                            <option value="9">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:0.7rem;">Week (in month)</label>
-                        <select id="filterWeek">
-                            <option value="">All</option>
-                            <option value="1">Week 1</option>
-                            <option value="2">Week 2</option>
-                            <option value="3">Week 3</option>
-                            <option value="4">Week 4</option>
-                            <option value="5">Week 5</option>
-                        </select>
-                    </div>
+                    <div><label>Year</label><select id="filterYear"></select></div>
+                    <div><label>Month</label><select id="filterMonth">
+                        <option value="">All</option><option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                    </select></div>
+                    <div><label>Week</label><select id="filterWeek"><option value="">All</option><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option><option value="5">Week 5</option></select></div>
                     <button class="btn btn-outline btn-sm" onclick="applyDashboardFilter()">Apply</button>
                     <button class="btn btn-sm" onclick="exportCSV()" style="margin-left:auto;">📥 Export CSV</button>
                 </div>
-
-                <div class="stats-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
                     <div class="stat-card"><div class="stat-value" id="statTodaySales">0</div><div>Sales Count</div></div>
-                    <div class="stat-card"><div class="stat-value" id="statRevenue">KSh 0</div><div>Total Revenue</div></div>
+                    <div class="stat-card"><div class="stat-value" id="statRevenue">KSh 0</div><div>Revenue</div></div>
                     <div class="stat-card"><div class="stat-value" id="statProducts">0</div><div>Products</div></div>
                     <div class="stat-card warning"><div class="stat-value" id="statLowStock">0</div><div>Low Stock</div></div>
                 </div>
@@ -241,16 +166,16 @@
             <form id="productForm">
                 <input type="hidden" id="editId">
                 <div class="form-group"><label>Name</label><input id="prodName" required></div>
-                <div class="form-group"><label>Code</label><input id="prodCode"></div>
+                <div class="form-group"><label>Code (SKU)</label><input id="prodCode"></div>
                 <div style="display:flex; gap:10px;">
                     <div class="form-group" style="flex:1;"><label>Category</label><select id="prodCategory"><option>Onesies</option><option>Dresses</option><option>Sets</option><option>Tops</option><option>Bottoms</option><option>Sleepwear</option></select></div>
                     <div class="form-group" style="flex:1;"><label>Condition</label><select id="prodCondition"><option>New</option><option>Second-Hand</option></select></div>
                 </div>
-                <div class="form-group"><label>Size</label><select id="prodSize"><option>Newborn</option><option>0-3M</option><option>3-6M</option></select></div>
+                <div class="form-group"><label>Size</label><select id="prodSize"><option>Newborn</option><option>0-3M</option><option>3-6M</option><option>6-12M</option><option>12-18M</option></select></div>
                 <div style="display:flex; gap:10px;">
-                    <div class="form-group" style="flex:1;"><label>Price</label><input type="number" id="prodPrice" required></div>
-                    <div class="form-group" style="flex:1;"><label>Cost</label><input type="number" id="prodCost"></div>
-                    <div class="form-group" style="flex:1;"><label>Qty</label><input type="number" id="prodQty" required></div>
+                    <div class="form-group" style="flex:1;"><label>Price (KSh)</label><input type="number" id="prodPrice" required></div>
+                    <div class="form-group" style="flex:1;"><label>Cost Price</label><input type="number" id="prodCost"></div>
+                    <div class="form-group" style="flex:1;"><label>Stock Qty</label><input type="number" id="prodQty" required></div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save</button>
                 <button type="button" onclick="document.getElementById('productModal').style.display='none'">Cancel</button>
@@ -262,7 +187,7 @@
     <div id="checkoutModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;">
         <div style="background:white; padding:20px; border-radius:14px; width:90%; max-width:400px;">
             <h2>Complete Sale</h2>
-            <div class="form-group"><label>Email</label><input id="checkoutEmail" placeholder="email@example.com"></div>
+            <div class="form-group"><label>Customer Email</label><input id="checkoutEmail" placeholder="email@example.com"></div>
             <div class="form-group"><label>Payment</label><select id="checkoutPayment"><option>Cash</option><option>M-Pesa</option><option>Card</option></select></div>
             <p>Total: <strong id="checkoutTotal"></strong></p>
             <button class="btn btn-success" onclick="completeSale()">✅ Complete</button>
@@ -273,8 +198,8 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ============== CONFIGURATION ==============
-        const firebaseConfig = {
+        // ==================== YOUR KEYS – REPLACE WITH REAL ONES ====================
+       const firebaseConfig = {
   apiKey: "AIzaSyCVzD09N1Qz9raFZy5BnQQyEYanB-g_nK8",
   authDomain: "enkerra.firebaseapp.com",
   projectId: "enkerra",
@@ -282,12 +207,11 @@
   messagingSenderId: "993565069998",
   appId: "1:993565069998:web:11be051df6e56fb11e133f"
 };
-
         const EMAILJS_USER_ID = "YOUR_EMAILJS_USER_ID";
         const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
         const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
 
-        // ============== INITIALIZE ==============
+        // ==================== INIT ====================
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
@@ -295,11 +219,12 @@
 
         let cart = [];
         let allProducts = [];
+        let allSalesCache = [];
         let currentUser = null;
-        let allSalesCache = []; // for CSV export and dashboard filtering
         let chartInstance = null;
+        let currentFilter = { year: new Date().getFullYear(), month: '', week: '' };
 
-        // ============== AUTH ==============
+        // Auth
         const loginScreen = document.getElementById('loginScreen');
         const appMain = document.getElementById('appMain');
 
@@ -309,8 +234,7 @@
                 loginScreen.classList.remove('active');
                 appMain.style.display = 'block';
                 attachNavEvents();
-                loadProducts();
-                loadAllSales(); // load sales for dashboard/export
+                loadInitialData();
                 navigateTo('pos');
             } else {
                 currentUser = null;
@@ -326,26 +250,28 @@
             auth.signInWithEmailAndPassword(email, password)
                 .catch(err => document.getElementById('loginError').textContent = err.message);
         });
-
         document.getElementById('showSignUp').addEventListener('click', () => {
             const email = prompt("Email:"), password = prompt("Password (min 6):");
-            if (email && password) auth.createUserWithEmailAndPassword(email, password)
-                .catch(err => alert(err.message));
+            if (email && password) auth.createUserWithEmailAndPassword(email, password).catch(err => alert(err.message));
         });
-
         document.getElementById('resetPassword').addEventListener('click', () => {
             const email = prompt("Email to reset:");
             if (email) auth.sendPasswordResetEmail(email).then(() => alert('Reset email sent!'));
         });
 
-        // ============== NAVIGATION ==============
+        async function loadInitialData() {
+            await loadProducts();
+            await loadAllSales();
+            refreshAll();
+        }
+
+        // Navigation
         const screens = {
             pos: document.getElementById('screen-pos'),
             products: document.getElementById('screen-products'),
             stock: document.getElementById('screen-stock'),
             dashboard: document.getElementById('screen-dashboard')
         };
-
         function navigateTo(name) {
             Object.values(screens).forEach(s => s.classList.remove('active'));
             if (screens[name]) screens[name].classList.add('active');
@@ -356,7 +282,6 @@
             if (name === 'stock') refreshStock();
             if (name === 'dashboard') refreshDashboard();
         }
-
         function attachNavEvents() {
             document.querySelectorAll('.bottom-nav button').forEach(btn => {
                 btn.addEventListener('click', () => navigateTo(btn.dataset.screen));
@@ -364,18 +289,16 @@
             document.getElementById('cartBtn').addEventListener('click', () => navigateTo('pos'));
         }
 
-        // ============== FIRESTORE LOADERS ==============
+        // Firestore helpers
         async function loadProducts() {
             const snap = await db.collection('products').get();
             allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             updateCategoryDropdowns();
         }
-
         async function loadAllSales() {
             const snap = await db.collection('sales').orderBy('date', 'desc').get();
             allSalesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
-
         function updateCategoryDropdowns() {
             const cats = [...new Set(allProducts.map(p => p.category))].sort();
             const html = '<option value="">All</option>' + cats.map(c => `<option>${c}</option>`).join('');
@@ -383,7 +306,7 @@
             document.getElementById('posCategoryFilter').innerHTML = html;
         }
 
-        // ============== PRODUCT CRUD ==============
+        // Products CRUD
         function openProductForm(id = null) {
             document.getElementById('editId').value = id || '';
             if (id) {
@@ -396,10 +319,11 @@
                 document.getElementById('prodPrice').value = p.price;
                 document.getElementById('prodCost').value = p.costPrice;
                 document.getElementById('prodQty').value = p.quantity;
+            } else {
+                document.getElementById('productForm').reset();
             }
             document.getElementById('productModal').style.display = 'flex';
         }
-
         document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const data = {
@@ -423,7 +347,6 @@
             refreshAll();
             showToast('Product saved');
         });
-
         function refreshProductList() {
             const search = (document.getElementById('productSearch')?.value || '').toLowerCase();
             const cat = document.getElementById('categoryFilter')?.value || '';
@@ -435,7 +358,7 @@
             `).join('');
         }
 
-        // ============== POS ==============
+        // POS
         function refreshPOS() {
             const search = (document.getElementById('posSearch')?.value || '').toLowerCase();
             const cat = document.getElementById('posCategoryFilter')?.value || '';
@@ -447,7 +370,6 @@
             `).join('');
             updateCartUI();
         }
-
         function addToCart(pid) {
             const prod = allProducts.find(p => p.id === pid);
             if (!prod || prod.quantity <= 0) { showToast('Out of stock', 'error'); return; }
@@ -460,7 +382,6 @@
             }
             updateCartUI();
         }
-
         function updateCartUI() {
             const total = cart.reduce((s,i) => s + i.price * i.quantity, 0);
             document.getElementById('cartTotal').textContent = `KSh ${total.toFixed(2)}`;
@@ -508,20 +429,19 @@
                 }
             }
             const docRef = await db.collection('sales').add(sale);
-            const saleId = docRef.id;
             cart = [];
             updateCartUI();
             document.getElementById('checkoutModal').style.display = 'none';
             await loadProducts();
-            await loadAllSales(); // refresh cache
+            await loadAllSales();
             refreshAll();
             showToast('Sale completed!');
-            // send receipt if email present
+            // send email if configured
             if (sale.customerEmail && EMAILJS_USER_ID !== "YOUR_EMAILJS_USER_ID") {
                 try {
                     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
                         to_email: sale.customerEmail,
-                        receipt_id: saleId,
+                        receipt_id: docRef.id,
                         date: new Date().toLocaleDateString(),
                         time: new Date().toLocaleTimeString(),
                         payment_method: sale.paymentMethod,
@@ -533,7 +453,7 @@
             }
         }
 
-        // ============== STOCK ==============
+        // Stock
         function refreshStock() {
             const search = (document.getElementById('stockSearch')?.value || '').toLowerCase();
             let filtered = allProducts.filter(p => p.name.toLowerCase().includes(search));
@@ -557,29 +477,21 @@
             showToast('Stock updated');
         }
 
-        // ============== DASHBOARD FILTER & CHART ==============
-        let currentFilter = { year: new Date().getFullYear(), month: '', week: '' };
-
+        // Dashboard filters & chart
         function populateYearFilter() {
             const yearSelect = document.getElementById('filterYear');
-            const currentYear = new Date().getFullYear();
-            let years = allSalesCache.map(s => {
-                if (s.date) return new Date(s.date.seconds * 1000).getFullYear();
-                return currentYear;
-            });
-            years = [...new Set(years)].sort((a,b) => b - a);
-            if (years.length === 0) years = [currentYear];
+            let years = allSalesCache.map(s => s.date ? new Date(s.date.seconds * 1000).getFullYear() : null).filter(Boolean);
+            years = [...new Set(years)].sort((a,b) => b-a);
+            if (years.length === 0) years = [new Date().getFullYear()];
             yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
             yearSelect.value = currentFilter.year;
         }
-
         function applyDashboardFilter() {
             currentFilter.year = parseInt(document.getElementById('filterYear').value);
             currentFilter.month = document.getElementById('filterMonth').value;
             currentFilter.week = document.getElementById('filterWeek').value;
             refreshDashboard();
         }
-
         function getFilteredSales() {
             let sales = allSalesCache.filter(s => s.date);
             if (currentFilter.year) {
@@ -598,7 +510,6 @@
             }
             return sales;
         }
-
         function refreshDashboard() {
             populateYearFilter();
             const sales = getFilteredSales();
@@ -609,7 +520,6 @@
             document.getElementById('statProducts').textContent = allProducts.length;
             document.getElementById('statLowStock').textContent = allProducts.filter(p => p.quantity <=5).length;
 
-            // Chart: daily totals
             const dailyMap = {};
             sales.forEach(s => {
                 const d = new Date(s.date.seconds * 1000).toLocaleDateString();
@@ -633,10 +543,8 @@
                 options: { scales: { y: { beginAtZero: true } } }
             });
         }
-
-        // CSV Export
         function exportCSV() {
-            const sales = getFilteredSales(); // all sales if no filter applied, or filtered
+            const sales = getFilteredSales();
             let csv = "Date,Time,Receipt ID,Items,Total,Payment Method,Email\n";
             sales.forEach(s => {
                 const d = new Date(s.date.seconds * 1000);
@@ -658,7 +566,6 @@
             refreshStock();
             refreshDashboard();
         }
-
         function showToast(msg, type='') {
             const container = document.getElementById('toastContainer');
             const div = document.createElement('div');
@@ -668,16 +575,20 @@
             setTimeout(() => div.remove(), 2000);
         }
 
-        // search listeners
+        // Search filters
         document.getElementById('productSearch')?.addEventListener('input', refreshProductList);
         document.getElementById('categoryFilter')?.addEventListener('change', refreshProductList);
         document.getElementById('posSearch')?.addEventListener('input', refreshPOS);
         document.getElementById('posCategoryFilter')?.addEventListener('change', refreshPOS);
         document.getElementById('stockSearch')?.addEventListener('input', refreshStock);
 
-        // PWA
+        // Register service worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(() => {});
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(() => console.log('SW registered'))
+                    .catch(err => console.error('SW failed', err));
+            });
         }
     </script>
 </body>
