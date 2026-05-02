@@ -210,15 +210,15 @@
         </div>
     </div>
 
-    <!-- Receipt Modal -->
+    <!-- Receipt Modal (updated) -->
     <div id="receiptModal" class="modal-overlay">
         <div class="modal">
             <h2>🧾 Receipt</h2>
             <div id="receiptSerial" style="font-weight:700; margin-bottom:8px;"></div>
             <div class="receipt-content" id="receiptBody"></div>
-            <div style="display:flex; gap:8px; margin-top:12px;">
+            <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
                 <button class="btn btn-outline btn-sm" onclick="printReceipt()">🖨️ Print</button>
-                <button class="btn btn-primary btn-sm" onclick="downloadReceipt()">⬇️ Download .txt</button>
+                <button class="btn btn-primary btn-sm" onclick="downloadPDF()">📄 Download PDF</button>
                 <button class="btn btn-sm" onclick="closeModal('receiptModal')">Close</button>
             </div>
         </div>
@@ -452,6 +452,98 @@
         };
         window.clearCart = () => { cart = []; updateCartUI(); };
 
+        // ===== Receipt Functions (UPDATED) =====
+        function viewReceipt(sale) {
+            const date = new Date(sale.date);
+            const serial = String(sale.id).padStart(6, '0');
+            document.getElementById('receiptSerial').textContent = `Receipt #: ${serial}`;
+
+            // Shop name is clean, no emoji
+            const receiptHTML = `
+                <div style="text-align:center; margin-bottom:10px;">
+                    <strong style="font-size:1.1rem;">Enkerra ang' Baby Shop</strong><br>
+                    <small>Baby Cloth Store</small>
+                </div>
+                <hr>
+                <div>Date: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
+                <div>Payment: ${sale.paymentMethod || 'N/A'}</div>
+                ${sale.customerEmail ? `<div>Email: ${sale.customerEmail}</div>` : ''}
+                <hr>
+                <table style="width:100%;">
+                    ${sale.items.map(i => `<tr><td>${i.name}</td><td>x${i.quantity}</td><td style="text-align:right;">KSh ${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}
+                </table>
+                <hr>
+                <div style="text-align:right; font-weight:700;">TOTAL: KSh ${sale.total.toFixed(2)}</div>
+                <div style="text-align:center; margin-top:12px; font-size:0.75rem; color:#888;">Thank you for shopping with us!</div>
+            `;
+            document.getElementById('receiptBody').innerHTML = receiptHTML;
+            document.getElementById('receiptModal').classList.add('active');
+        }
+
+        function printReceipt() {
+            const content = document.getElementById('receiptBody').innerHTML;
+            const serial = document.getElementById('receiptSerial').textContent;
+            const printWindow = window.open('', '_blank', 'width=400,height=600');
+            printWindow.document.write(`
+                <html>
+                <head><title>Receipt ${serial}</title>
+                <style>
+                    body { font-family: 'Courier New', monospace; padding:20px; }
+                    hr { border-top:1px dashed #ccc; }
+                </style>
+                </head>
+                <body>
+                    <div style="font-weight:700; margin-bottom:8px;">${serial}</div>
+                    ${content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function downloadPDF() {
+            // Opens a clean print view so the user can save as PDF from browser print dialog
+            const content = document.getElementById('receiptBody').innerHTML;
+            const serial = document.getElementById('receiptSerial').textContent;
+            const pdfWindow = window.open('', '_blank');
+            pdfWindow.document.write(`
+                <html>
+                <head>
+                    <title>Receipt ${serial}</title>
+                    <style>
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        }
+                        body {
+                            font-family: 'Courier New', monospace;
+                            padding: 30px;
+                            max-width: 400px;
+                            margin: 0 auto;
+                            color: #333;
+                        }
+                        hr { border-top: 1px dashed #aaa; }
+                        .shop-name { font-size: 1.2rem; font-weight: bold; text-align: center; }
+                        .shop-sub { font-size: 0.8rem; text-align: center; color: #666; }
+                        .total { text-align: right; font-weight: bold; }
+                        .footer { text-align: center; margin-top: 20px; font-size: 0.7rem; color: #888; }
+                    </style>
+                </head>
+                <body>
+                    <div style="font-weight:700; margin-bottom:10px;">${serial}</div>
+                    ${content}
+                </body>
+                </html>
+            `);
+            pdfWindow.document.close();
+            pdfWindow.focus();
+            // Wait a moment for the content to render, then trigger print (which allows "Save as PDF")
+            setTimeout(() => {
+                pdfWindow.print();
+            }, 500);
+        }
+
+        // ===== Checkout =====
         document.getElementById('checkoutBtn').addEventListener('click', () => {
             document.getElementById('checkoutTotal').textContent = document.getElementById('cartTotal').textContent;
             document.getElementById('checkoutModal').classList.add('active');
@@ -478,6 +570,7 @@
             refreshAll();
             showToast('Sale completed!');
             lastReceiptData = sale;
+            viewReceipt(sale);
             // optional email
             if (sale.customerEmail && EMAILJS_USER_ID !== "YOUR_EMAILJS_USER_ID") {
                 try {
@@ -494,57 +587,6 @@
                 } catch(e) { showToast('Email failed', 'error'); }
             }
         }
-
-        // ===== Receipt =====
-        function viewReceipt(sale) {
-            const date = new Date(sale.date);
-            document.getElementById('receiptSerial').textContent = `Receipt #: ${String(sale.id).padStart(6, '0')}`;
-            document.getElementById('receiptBody').innerHTML = `
-                <p><strong>Date:</strong> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</p>
-                <p><strong>Payment:</strong> ${sale.paymentMethod || 'N/A'}</p>
-                <hr>
-                <table style="width:100%;">
-                    ${sale.items.map(i => `<tr><td>${i.name}</td><td>x${i.quantity}</td><td style="text-align:right;">KSh ${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}
-                </table>
-                <hr>
-                <p style="text-align:right; font-weight:700;">TOTAL: KSh ${sale.total.toFixed(2)}</p>
-            `;
-            document.getElementById('receiptModal').classList.add('active');
-        }
-
-        function printReceipt() {
-            const content = document.getElementById('receiptBody').innerHTML;
-            const printWindow = window.open('', '_blank', 'width=400,height=600');
-            printWindow.document.write(`
-                <html><head><title>Receipt</title>
-                <style>body{font-family:monospace; padding:20px;} hr{border-top:1px dashed #ccc;}</style>
-                </head><body>${document.getElementById('receiptSerial').outerHTML}${content}</body></html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-        }
-
-        function downloadReceipt() {
-            const serial = document.getElementById('receiptSerial').textContent;
-            const plainText = serial + '\n' + document.getElementById('receiptBody').innerText;
-            const blob = new Blob([plainText], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `receipt_${serial.replace(/[^0-9]/g,'')}.txt`;
-            a.click();
-        }
-
-        // Override checkout button to also show receipt modal
-        document.getElementById('checkoutBtn').addEventListener('click', () => {
-            document.getElementById('checkoutTotal').textContent = document.getElementById('cartTotal').textContent;
-            document.getElementById('checkoutModal').classList.add('active');
-        });
-        // After sale, show receipt
-        const originalComplete = completeSale;
-        completeSale = async function() {
-            await originalComplete();
-            if (lastReceiptData) viewReceipt(lastReceiptData);
-        };
 
         // ===== Stock =====
         function refreshStock() {
