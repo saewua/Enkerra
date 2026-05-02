@@ -52,6 +52,7 @@
         .modal { background:white; padding:20px; border-radius:14px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto; }
         .receipt-content { font-family: 'Courier New', monospace; font-size:0.85rem; line-height:1.4; }
         .receipt-content hr { margin:8px 0; border-top:1px dashed #ccc; }
+        .stat-card.net { border-left: 4px solid var(--success); }
     </style>
 </head>
 <body>
@@ -137,14 +138,20 @@
                     <button class="btn btn-outline btn-sm" onclick="applyDashboardFilter()">Apply</button>
                     <button class="btn btn-sm" onclick="exportSalesCSV()" style="margin-left:auto;">📥 Export CSV</button>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+                <!-- Updated stat cards: 4 columns, 6 cards total -->
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
                     <div class="stat-card"><div class="stat-value" id="statTodaySales">0</div><div>Sales Count</div></div>
                     <div class="stat-card"><div class="stat-value" id="statRevenue">KSh 0</div><div>Revenue</div></div>
-                    <div class="stat-card"><div class="stat-value" id="statAvgDaily">KSh 0</div><div>Avg Daily Sales</div></div>
+                    <div class="stat-card net"><div class="stat-value" id="statNetProfit">KSh 0</div><div>Net Profit</div></div>
+                    <div class="stat-card"><div class="stat-value" id="statAvgDaily">KSh 0</div><div>Avg Daily</div></div>
                     <div class="stat-card"><div class="stat-value" id="statProducts">0</div><div>Products</div></div>
                     <div class="stat-card warning"><div class="stat-value" id="statLowStock">0</div><div>Low Stock</div></div>
                 </div>
                 <canvas id="salesChart" style="width:100%; height:250px;"></canvas>
+                <div style="margin-top: 16px;">
+                    <h3 style="font-size:0.9rem; margin-bottom:8px;">📅 Monthly Revenue vs Expenses</h3>
+                    <canvas id="monthlyChart" style="width:100%; height:250px;"></canvas>
+                </div>
             </div>
         </div>
 
@@ -157,7 +164,7 @@
         </nav>
     </div>
 
-    <!-- Product Modal -->
+    <!-- Modals (product, expense, checkout, receipt) – same as before -->
     <div id="productModal" class="modal-overlay">
         <div class="modal">
             <h2>Product</h2>
@@ -182,7 +189,6 @@
         </div>
     </div>
 
-    <!-- Expense Modal -->
     <div id="expenseModal" class="modal-overlay">
         <div class="modal">
             <h2>Add Expense</h2>
@@ -198,7 +204,6 @@
         </div>
     </div>
 
-    <!-- Checkout Modal -->
     <div id="checkoutModal" class="modal-overlay">
         <div class="modal">
             <h2>Complete Sale</h2>
@@ -210,7 +215,6 @@
         </div>
     </div>
 
-    <!-- Receipt Modal (updated) -->
     <div id="receiptModal" class="modal-overlay">
         <div class="modal">
             <h2>🧾 Receipt</h2>
@@ -227,64 +231,50 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // IndexedDB Setup (No Firebase)
+        // ============== INDEXEDDB ==============
         const DB_NAME = 'EnkerraLocalDB';
         let db;
-
         function openDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, 2);
                 request.onupgradeneeded = (e) => {
                     const database = e.target.result;
-                    if (!database.objectStoreNames.contains('products')) {
-                        database.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
-                    }
-                    if (!database.objectStoreNames.contains('sales')) {
-                        database.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
-                    }
-                    if (!database.objectStoreNames.contains('expenses')) {
-                        database.createObjectStore('expenses', { keyPath: 'id', autoIncrement: true });
-                    }
+                    if (!database.objectStoreNames.contains('products')) database.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
+                    if (!database.objectStoreNames.contains('sales')) database.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
+                    if (!database.objectStoreNames.contains('expenses')) database.createObjectStore('expenses', { keyPath: 'id', autoIncrement: true });
                 };
                 request.onsuccess = (e) => { db = e.target.result; resolve(db); };
                 request.onerror = (e) => reject(e.target.error);
             });
         }
-
         const idb = {
             add: (store, data) => new Promise((resolve, reject) => {
                 const tx = db.transaction(store, 'readwrite');
                 const req = tx.objectStore(store).add(data);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
             }),
             put: (store, data) => new Promise((resolve, reject) => {
                 const tx = db.transaction(store, 'readwrite');
                 const req = tx.objectStore(store).put(data);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
             }),
             getAll: (store) => new Promise((resolve, reject) => {
                 const tx = db.transaction(store, 'readonly');
                 const req = tx.objectStore(store).getAll();
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
             }),
             get: (store, id) => new Promise((resolve, reject) => {
                 const tx = db.transaction(store, 'readonly');
                 const req = tx.objectStore(store).get(id);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
             }),
             delete: (store, id) => new Promise((resolve, reject) => {
                 const tx = db.transaction(store, 'readwrite');
                 const req = tx.objectStore(store).delete(id);
-                req.onsuccess = () => resolve();
-                req.onerror = () => reject(req.error);
+                req.onsuccess = () => resolve(); req.onerror = () => reject(req.error);
             })
         };
 
-        // EmailJS (optional)
         const EMAILJS_USER_ID = "YOUR_EMAILJS_USER_ID";
         const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
         const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
@@ -295,10 +285,10 @@
         let allSalesCache = [];
         let allExpensesCache = [];
         let chartInstance = null;
+        let monthlyChartInstance = null;
         let currentFilter = { year: new Date().getFullYear(), month: '', week: '' };
         let lastReceiptData = null;
 
-        // ===== Init App =====
         async function initApp() {
             await openDB();
             await loadAllData();
@@ -306,24 +296,21 @@
             navigateTo('pos');
             refreshAll();
         }
-
         async function loadAllData() {
             allProducts = await idb.getAll('products');
             allSalesCache = await idb.getAll('sales');
             allExpensesCache = await idb.getAll('expenses');
             updateCategoryDropdowns();
         }
-
         function updateCategoryDropdowns() {
             const cats = [...new Set(allProducts.map(p => p.category))].sort();
             const html = '<option value="">All</option>' + cats.map(c => `<option>${c}</option>`).join('');
             document.getElementById('categoryFilter').innerHTML = html;
             document.getElementById('posCategoryFilter').innerHTML = html;
         }
-
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-        // ===== Navigation =====
+        // Navigation
         const screens = {
             pos: document.getElementById('screen-pos'),
             products: document.getElementById('screen-products'),
@@ -343,13 +330,11 @@
             if (name === 'dashboard') refreshDashboard();
         }
         function attachNavEvents() {
-            document.querySelectorAll('.bottom-nav button').forEach(btn => {
-                btn.addEventListener('click', () => navigateTo(btn.dataset.screen));
-            });
+            document.querySelectorAll('.bottom-nav button').forEach(btn => btn.addEventListener('click', () => navigateTo(btn.dataset.screen)));
             document.getElementById('cartBtn').addEventListener('click', () => navigateTo('pos'));
         }
 
-        // ===== Products =====
+        // Products CRUD
         function openProductForm(id = null) {
             document.getElementById('editId').value = id || '';
             document.getElementById('productForm').reset();
@@ -384,9 +369,7 @@
             if (id) { data.id = parseInt(id); await idb.put('products', data); }
             else { await idb.add('products', data); }
             closeModal('productModal');
-            await loadAllData();
-            refreshAll();
-            showToast('Product saved');
+            await loadAllData(); refreshAll(); showToast('Product saved');
         });
         function refreshProductList() {
             const search = (document.getElementById('productSearch')?.value || '').toLowerCase();
@@ -398,11 +381,10 @@
                     Buy: KSh ${p.costPrice||0} | Sell: KSh ${p.price}<br>
                     Stock: ${p.quantity}
                     ${p.supplier ? `<br><small>Supp: ${p.supplier}</small>` : ''}
-                </div>
-            `).join('');
+                </div>`).join('');
         }
 
-        // ===== POS =====
+        // POS
         function refreshPOS() {
             const search = (document.getElementById('posSearch')?.value || '').toLowerCase();
             const cat = document.getElementById('posCategoryFilter')?.value || '';
@@ -410,8 +392,7 @@
             document.getElementById('posProductGrid').innerHTML = filtered.map(p => `
                 <div class="product-card" onclick="addToCart(${p.id})">
                     <strong>${p.name}</strong><br>KSh ${p.price}<br>Qty: ${p.quantity}
-                </div>
-            `).join('');
+                </div>`).join('');
             updateCartUI();
         }
         function addToCart(pid) {
@@ -422,7 +403,7 @@
                 if (existing.quantity >= prod.quantity) { showToast('Max stock'); return; }
                 existing.quantity++;
             } else {
-                cart.push({ productId: pid, name: prod.name, price: prod.price, quantity: 1 });
+                cart.push({ productId: pid, name: prod.name, price: prod.price, costPrice: prod.costPrice || 0, quantity: 1 });
             }
             updateCartUI();
         }
@@ -438,8 +419,7 @@
                         <button onclick="updateCartItem(${i},-1)">-</button>
                         <button onclick="updateCartItem(${i},1)">+</button>
                     </span>
-                </div>
-            `).join('');
+                </div>`).join('');
         }
         window.updateCartItem = (i, d) => {
             const item = cart[i];
@@ -452,106 +432,56 @@
         };
         window.clearCart = () => { cart = []; updateCartUI(); };
 
-        // ===== Receipt Functions (UPDATED) =====
+        // Receipt
         function viewReceipt(sale) {
             const date = new Date(sale.date);
             const serial = String(sale.id).padStart(6, '0');
             document.getElementById('receiptSerial').textContent = `Receipt #: ${serial}`;
-
-            // Shop name is clean, no emoji
             const receiptHTML = `
                 <div style="text-align:center; margin-bottom:10px;">
                     <strong style="font-size:1.1rem;">Enkerra ang' Baby Shop</strong><br>
                     <small>Baby Cloth Store</small>
-                </div>
-                <hr>
+                </div><hr>
                 <div>Date: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
                 <div>Payment: ${sale.paymentMethod || 'N/A'}</div>
-                ${sale.customerEmail ? `<div>Email: ${sale.customerEmail}</div>` : ''}
-                <hr>
-                <table style="width:100%;">
-                    ${sale.items.map(i => `<tr><td>${i.name}</td><td>x${i.quantity}</td><td style="text-align:right;">KSh ${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}
-                </table>
-                <hr>
+                ${sale.customerEmail ? `<div>Email: ${sale.customerEmail}</div>` : ''}<hr>
+                <table style="width:100%;">${sale.items.map(i => `<tr><td>${i.name}</td><td>x${i.quantity}</td><td style="text-align:right;">KSh ${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}</table><hr>
                 <div style="text-align:right; font-weight:700;">TOTAL: KSh ${sale.total.toFixed(2)}</div>
-                <div style="text-align:center; margin-top:12px; font-size:0.75rem; color:#888;">Thank you for shopping with us!</div>
-            `;
+                <div style="text-align:center; margin-top:12px; font-size:0.75rem; color:#888;">Thank you for shopping with us!</div>`;
             document.getElementById('receiptBody').innerHTML = receiptHTML;
             document.getElementById('receiptModal').classList.add('active');
         }
-
         function printReceipt() {
             const content = document.getElementById('receiptBody').innerHTML;
             const serial = document.getElementById('receiptSerial').textContent;
             const printWindow = window.open('', '_blank', 'width=400,height=600');
-            printWindow.document.write(`
-                <html>
-                <head><title>Receipt ${serial}</title>
-                <style>
-                    body { font-family: 'Courier New', monospace; padding:20px; }
-                    hr { border-top:1px dashed #ccc; }
-                </style>
-                </head>
-                <body>
-                    <div style="font-weight:700; margin-bottom:8px;">${serial}</div>
-                    ${content}
-                </body>
-                </html>
-            `);
+            printWindow.document.write(`<html><head><title>Receipt ${serial}</title><style>body{font-family:monospace; padding:20px;} hr{border-top:1px dashed #ccc;}</style></head><body><div style="font-weight:700; margin-bottom:8px;">${serial}</div>${content}</body></html>`);
             printWindow.document.close();
             printWindow.print();
         }
-
         function downloadPDF() {
-            // Opens a clean print view so the user can save as PDF from browser print dialog
             const content = document.getElementById('receiptBody').innerHTML;
             const serial = document.getElementById('receiptSerial').textContent;
             const pdfWindow = window.open('', '_blank');
-            pdfWindow.document.write(`
-                <html>
-                <head>
-                    <title>Receipt ${serial}</title>
-                    <style>
-                        @media print {
-                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        }
-                        body {
-                            font-family: 'Courier New', monospace;
-                            padding: 30px;
-                            max-width: 400px;
-                            margin: 0 auto;
-                            color: #333;
-                        }
-                        hr { border-top: 1px dashed #aaa; }
-                        .shop-name { font-size: 1.2rem; font-weight: bold; text-align: center; }
-                        .shop-sub { font-size: 0.8rem; text-align: center; color: #666; }
-                        .total { text-align: right; font-weight: bold; }
-                        .footer { text-align: center; margin-top: 20px; font-size: 0.7rem; color: #888; }
-                    </style>
-                </head>
-                <body>
-                    <div style="font-weight:700; margin-bottom:10px;">${serial}</div>
-                    ${content}
-                </body>
-                </html>
-            `);
+            pdfWindow.document.write(`<html><head><title>Receipt ${serial}</title><style>body{font-family:monospace; padding:30px; max-width:400px; margin:0 auto; color:#333;} hr{border-top:1px dashed #aaa;}</style></head><body><div style="font-weight:700; margin-bottom:10px;">${serial}</div>${content}</body></html>`);
             pdfWindow.document.close();
             pdfWindow.focus();
-            // Wait a moment for the content to render, then trigger print (which allows "Save as PDF")
-            setTimeout(() => {
-                pdfWindow.print();
-            }, 500);
+            setTimeout(() => pdfWindow.print(), 500);
         }
 
-        // ===== Checkout =====
+        // Checkout
         document.getElementById('checkoutBtn').addEventListener('click', () => {
             document.getElementById('checkoutTotal').textContent = document.getElementById('cartTotal').textContent;
             document.getElementById('checkoutModal').classList.add('active');
         });
-
         async function completeSale() {
             const sale = {
-                items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
+                items: cart.map(i => ({
+                    name: i.name,
+                    price: i.price,
+                    costPrice: i.costPrice || 0,   // store cost price in the sale record
+                    quantity: i.quantity
+                })),
                 total: cart.reduce((s,i) => s + i.price * i.quantity, 0),
                 date: new Date().toISOString(),
                 paymentMethod: document.getElementById('checkoutPayment').value,
@@ -563,22 +493,14 @@
             }
             const saleId = await idb.add('sales', sale);
             sale.id = saleId;
-            cart = [];
-            updateCartUI();
-            closeModal('checkoutModal');
-            await loadAllData();
-            refreshAll();
-            showToast('Sale completed!');
-            lastReceiptData = sale;
-            viewReceipt(sale);
-            // optional email
+            cart = []; updateCartUI(); closeModal('checkoutModal');
+            await loadAllData(); refreshAll(); showToast('Sale completed!');
+            lastReceiptData = sale; viewReceipt(sale);
             if (sale.customerEmail && EMAILJS_USER_ID !== "YOUR_EMAILJS_USER_ID") {
                 try {
                     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                        to_email: sale.customerEmail,
-                        receipt_id: sale.id,
-                        date: new Date(sale.date).toLocaleDateString(),
-                        time: new Date(sale.date).toLocaleTimeString(),
+                        to_email: sale.customerEmail, receipt_id: sale.id,
+                        date: new Date(sale.date).toLocaleDateString(), time: new Date(sale.date).toLocaleTimeString(),
                         payment_method: sale.paymentMethod,
                         items_table: sale.items.map(i => `${i.name} x${i.quantity} = KSh ${(i.price*i.quantity).toFixed(2)}`).join('<br>'),
                         total: sale.total.toFixed(2)
@@ -588,31 +510,25 @@
             }
         }
 
-        // ===== Stock =====
+        // Stock
         function refreshStock() {
             const search = (document.getElementById('stockSearch')?.value || '').toLowerCase();
             let filtered = allProducts.filter(p => p.name.toLowerCase().includes(search));
             document.getElementById('stockList').innerHTML = filtered.map(p => `
                 <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
                     <span>${p.name} (${p.quantity})</span>
-                    <span>
-                        <button onclick="adjustStock(${p.id},1)">+</button>
-                        <button onclick="adjustStock(${p.id},-1)">-</button>
-                    </span>
-                </div>
-            `).join('');
+                    <span><button onclick="adjustStock(${p.id},1)">+</button> <button onclick="adjustStock(${p.id},-1)">-</button></span>
+                </div>`).join('');
         }
         async function adjustStock(pid, delta) {
             const prod = allProducts.find(p => p.id === pid);
             if (!prod) return;
             prod.quantity = Math.max(0, prod.quantity + delta);
             await idb.put('products', prod);
-            await loadAllData();
-            refreshAll();
-            showToast('Stock updated');
+            await loadAllData(); refreshAll(); showToast('Stock updated');
         }
 
-        // ===== Expenses =====
+        // Expenses
         function openExpenseForm(id = null) {
             document.getElementById('expEditId').value = id || '';
             document.getElementById('expenseForm').reset();
@@ -637,9 +553,7 @@
             if (id) { data.id = parseInt(id); await idb.put('expenses', data); }
             else { await idb.add('expenses', data); }
             closeModal('expenseModal');
-            await loadAllData();
-            refreshExpenseList();
-            showToast('Expense saved');
+            await loadAllData(); refreshExpenseList(); showToast('Expense saved');
         });
         function refreshExpenseList() {
             const cat = document.getElementById('expenseFilterCategory').value;
@@ -657,7 +571,7 @@
             </tbody></table>`;
         }
 
-        // ===== Dashboard =====
+        // Dashboard (with Net Profit)
         function populateYearFilter() {
             const yearSelect = document.getElementById('filterYear');
             let years = allSalesCache.map(s => new Date(s.date).getFullYear()).filter(Boolean);
@@ -686,53 +600,76 @@
             }
             return sales;
         }
+
         function refreshDashboard() {
             populateYearFilter();
             const sales = getFilteredSales();
             const count = sales.length;
             const revenue = sales.reduce((sum, s) => sum + s.total, 0);
+
+            // Net Profit = sum of (selling price - cost price) * quantity
+            let netProfit = 0;
+            sales.forEach(s => {
+                s.items.forEach(item => {
+                    const profit = (item.price - (item.costPrice || 0)) * item.quantity;
+                    netProfit += profit;
+                });
+            });
+
             // all-time mean daily sales
             const allDays = [...new Set(allSalesCache.map(s => new Date(s.date).toLocaleDateString()))];
             const totalAll = allSalesCache.reduce((sum, s) => sum + s.total, 0);
             const avgDaily = allDays.length ? (totalAll / allDays.length) : 0;
+
             document.getElementById('statTodaySales').textContent = count;
             document.getElementById('statRevenue').textContent = `KSh ${revenue.toFixed(0)}`;
+            document.getElementById('statNetProfit').textContent = `KSh ${netProfit.toFixed(0)}`;
             document.getElementById('statAvgDaily').textContent = `KSh ${avgDaily.toFixed(0)}`;
             document.getElementById('statProducts').textContent = allProducts.length;
             document.getElementById('statLowStock').textContent = allProducts.filter(p => p.quantity <=5).length;
 
-            // Line chart
+            // Daily line chart
             const dailyMap = {};
-            sales.forEach(s => {
-                const d = new Date(s.date).toLocaleDateString();
-                dailyMap[d] = (dailyMap[d] || 0) + s.total;
-            });
+            sales.forEach(s => { const d = new Date(s.date).toLocaleDateString(); dailyMap[d] = (dailyMap[d] || 0) + s.total; });
             const labels = Object.keys(dailyMap).sort();
             const data = labels.map(l => dailyMap[l]);
-
             if (chartInstance) chartInstance.destroy();
             const ctx = document.getElementById('salesChart').getContext('2d');
             chartInstance = new Chart(ctx, {
                 type: 'line',
+                data: { labels, datasets: [{ label: 'Revenue (KSh)', data, borderColor: '#e8789a', backgroundColor: 'rgba(232, 120, 154, 0.1)', fill: true, tension: 0.3 }] },
+                options: { scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+            });
+
+            // Monthly Revenue vs Expenses bar chart
+            const selectedYear = currentFilter.year;
+            const monthRevenue = Array(12).fill(0);
+            const monthExpenses = Array(12).fill(0);
+            allSalesCache.forEach(s => {
+                const d = new Date(s.date);
+                if (d.getFullYear() === selectedYear) monthRevenue[d.getMonth()] += s.total;
+            });
+            allExpensesCache.forEach(exp => {
+                const d = new Date(exp.date);
+                if (d.getFullYear() === selectedYear) monthExpenses[d.getMonth()] += exp.amount;
+            });
+            const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            if (monthlyChartInstance) monthlyChartInstance.destroy();
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChartInstance = new Chart(monthlyCtx, {
+                type: 'bar',
                 data: {
-                    labels,
-                    datasets: [{
-                        label: 'Revenue (KSh)',
-                        data,
-                        borderColor: '#e8789a',
-                        backgroundColor: 'rgba(232, 120, 154, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
+                    labels: monthLabels,
+                    datasets: [
+                        { label: 'Revenue', data: monthRevenue, backgroundColor: '#e8789a', borderRadius: 6 },
+                        { label: 'Expenses', data: monthExpenses, backgroundColor: '#f0a04b', borderRadius: 6 }
+                    ]
                 },
-                options: {
-                    scales: { y: { beginAtZero: true } },
-                    plugins: { legend: { display: false } }
-                }
+                options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } }
             });
         }
 
-        // ===== Export Functions =====
+        // CSV exports
         function exportProductsCSV() {
             let csv = "Name,Code,Category,Condition,Size,Supplier,Buying Price,Selling Price,Stock\n";
             allProducts.forEach(p => csv += `"${p.name}","${p.productCode||''}","${p.category}","${p.condition}","${p.size}","${p.supplier||''}",${p.costPrice||0},${p.price},${p.quantity}\n`);
@@ -758,30 +695,17 @@
             });
             downloadCSV(csv, 'sales.csv');
         }
-
         function downloadCSV(csv, filename) {
             const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
         }
-
         function refreshAll() {
-            refreshPOS();
-            refreshProductList();
-            refreshStock();
-            refreshExpenseList();
-            refreshDashboard();
+            refreshPOS(); refreshProductList(); refreshStock(); refreshExpenseList(); refreshDashboard();
         }
-
         function showToast(msg, type='') {
             const container = document.getElementById('toastContainer');
-            const div = document.createElement('div');
-            div.className = `toast ${type}`;
-            div.textContent = msg;
-            container.appendChild(div);
-            setTimeout(() => div.remove(), 2000);
+            const div = document.createElement('div'); div.className = `toast ${type}`; div.textContent = msg;
+            container.appendChild(div); setTimeout(() => div.remove(), 2000);
         }
 
         // Search listeners
@@ -790,13 +714,9 @@
         document.getElementById('posSearch')?.addEventListener('input', refreshPOS);
         document.getElementById('posCategoryFilter')?.addEventListener('change', refreshPOS);
         document.getElementById('stockSearch')?.addEventListener('input', refreshStock);
-
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(()=>{});
-            });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
         }
-
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
