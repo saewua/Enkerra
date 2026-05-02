@@ -16,7 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <style>
-        /* All CSS styles remain the same as previous full code */
+        /* Same core styles, slightly expanded for new tab */
         :root {
             --primary: #e8789a; --primary-dark: #c45d7e; --bg: #fdf6f9; --surface: #fff;
             --text: #3d2c33; --text-secondary: #6b5b63; --border: #f0d8e0;
@@ -32,8 +32,8 @@
         .main-content { padding:16px; max-width:900px; margin:0 auto; }
         .screen { display:none; }
         .screen.active { display:block; }
-        .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; height:var(--nav-height); z-index:100; }
-        .bottom-nav button { flex:1; border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:0.7rem; color:var(--text-secondary); }
+        .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; height:var(--nav-height); z-index:100; overflow-x:auto; }
+        .bottom-nav button { flex:1; min-width:50px; border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:0.65rem; color:var(--text-secondary); white-space:nowrap; }
         .bottom-nav button.active { color:var(--primary); font-weight:600; }
         .btn { display:inline-flex; align-items:center; gap:6px; padding:10px 18px; border-radius:var(--radius-sm); font-weight:600; border:none; cursor:pointer; }
         .btn-primary { background:var(--primary); color:#fff; }
@@ -52,6 +52,8 @@
         .login-card { background:var(--surface); padding:30px; border-radius:var(--radius); box-shadow:0 8px 24px rgba(0,0,0,0.1); width:100%; max-width:400px; }
         .filter-bar { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px; background:var(--surface); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border); }
         .filter-bar select { padding:8px; border-radius:6px; border:1px solid var(--border); }
+        .table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+        .table th, .table td { padding:8px; text-align:left; border-bottom:1px solid var(--border); }
     </style>
 </head>
 <body>
@@ -62,22 +64,15 @@
             <div style="text-align:center; margin-bottom:20px;">
                 <span style="font-size:3rem;">👶</span>
                 <h2>Enkerra ang' Baby Shop</h2>
-                <p style="color:var(--text-secondary);">Sign in to continue</p>
+                <p>Sign in to continue</p>
             </div>
             <form id="loginForm">
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="loginEmail" required placeholder="you@shop.com">
-                </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <input type="password" id="loginPassword" required placeholder="••••••••">
-                </div>
+                <div class="form-group"><label>Email</label><input type="email" id="loginEmail" required></div>
+                <div class="form-group"><label>Password</label><input type="password" id="loginPassword" required></div>
                 <button type="submit" class="btn btn-primary" style="width:100%;">🔐 Sign In</button>
             </form>
             <p style="text-align:center; margin-top:12px;">
-                <a href="#" id="showSignUp" style="color:var(--primary);">Create account</a> |
-                <a href="#" id="resetPassword" style="color:var(--primary);">Reset password</a>
+                <a href="#" id="showSignUp">Create account</a> | <a href="#" id="resetPassword">Reset password</a>
             </p>
             <div id="loginError" style="color:var(--danger); text-align:center;"></div>
         </div>
@@ -95,12 +90,14 @@
             <div class="screen active" id="screen-pos">
                 <h2>🛍️ New Sale</h2>
                 <div style="display:flex; gap:8px; margin-bottom:12px;">
-                    <input type="text" id="posSearch" placeholder="Search..." style="flex:1; padding:8px;">
+                    <input type="text" id="posSearch" placeholder="Search..." style="flex:1;">
                     <select id="posCategoryFilter"><option value="">All</option></select>
                 </div>
                 <div class="product-grid" id="posProductGrid"></div>
                 <div class="cart-panel">
-                    <div><strong>Cart</strong><button class="btn btn-sm" onclick="clearCart()">Clear</button></div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>Cart</strong><button class="btn btn-sm" onclick="clearCart()">Clear</button>
+                    </div>
                     <div id="cartItemsList"></div>
                     <div style="display:flex; justify-content:space-between; margin:12px 0; font-weight:700;">
                         <span>Total:</span><span id="cartTotal">KSh 0.00</span>
@@ -111,12 +108,15 @@
 
             <!-- Products Screen -->
             <div class="screen" id="screen-products">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                     <h2>📦 Products</h2>
-                    <button class="btn btn-primary btn-sm" onclick="openProductForm()">+ Add</button>
+                    <div>
+                        <button class="btn btn-primary btn-sm" onclick="openProductForm()">+ Add</button>
+                        <button class="btn btn-outline btn-sm" onclick="exportProductsCSV()">⬇️ CSV</button>
+                    </div>
                 </div>
                 <div style="display:flex; gap:8px; margin:12px 0;">
-                    <input type="text" id="productSearch" placeholder="Search..." style="flex:1; padding:8px;">
+                    <input type="text" id="productSearch" placeholder="Search..." style="flex:1;">
                     <select id="categoryFilter"><option value="">All</option></select>
                 </div>
                 <div class="product-grid" id="productListGrid"></div>
@@ -125,8 +125,26 @@
             <!-- Stock Screen -->
             <div class="screen" id="screen-stock">
                 <h2>📋 Stock</h2>
-                <input type="text" id="stockSearch" placeholder="Search..." style="width:100%; padding:8px; margin-bottom:12px;">
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <input type="text" id="stockSearch" placeholder="Search..." style="flex:1;">
+                    <button class="btn btn-outline btn-sm" onclick="exportStockCSV()">⬇️ CSV</button>
+                </div>
                 <div id="stockList"></div>
+            </div>
+
+            <!-- Expenses Screen -->
+            <div class="screen" id="screen-expenses">
+                <h2>💰 Expenses</h2>
+                <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                    <button class="btn btn-primary btn-sm" onclick="openExpenseForm()">+ Add Expense</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportExpensesCSV()">⬇️ CSV</button>
+                </div>
+                <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+                    <select id="expenseFilterCategory"><option value="">All Categories</option><option>Rent</option><option>Transport</option><option>Stock</option><option>Others</option></select>
+                    <input type="date" id="expenseFilterDate">
+                    <button class="btn btn-sm" onclick="refreshExpenseList()">Filter</button>
+                </div>
+                <div id="expenseList"></div>
             </div>
 
             <!-- Dashboard Screen -->
@@ -137,9 +155,9 @@
                     <div><label>Month</label><select id="filterMonth">
                         <option value="">All</option><option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
                     </select></div>
-                    <div><label>Week</label><select id="filterWeek"><option value="">All</option><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option><option value="5">Week 5</option></select></div>
+                    <div><label>Week</label><select id="filterWeek"><option value="">All</option><option value="1">W1</option><option value="2">W2</option><option value="3">W3</option><option value="4">W4</option><option value="5">W5</option></select></div>
                     <button class="btn btn-outline btn-sm" onclick="applyDashboardFilter()">Apply</button>
-                    <button class="btn btn-sm" onclick="exportCSV()" style="margin-left:auto;">📥 Export CSV</button>
+                    <button class="btn btn-sm" onclick="exportSalesCSV()" style="margin-left:auto;">📥 Export CSV</button>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
                     <div class="stat-card"><div class="stat-value" id="statTodaySales">0</div><div>Sales Count</div></div>
@@ -155,6 +173,7 @@
             <button data-screen="pos" class="active"><span>🛍️</span>Sale</button>
             <button data-screen="products"><span>📦</span>Products</button>
             <button data-screen="stock"><span>📋</span>Stock</button>
+            <button data-screen="expenses"><span>💰</span>Expenses</button>
             <button data-screen="dashboard"><span>📊</span>Dashboard</button>
         </nav>
     </div>
@@ -162,28 +181,45 @@
     <!-- Product Modal -->
     <div id="productModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;">
         <div style="background:white; padding:20px; border-radius:14px; width:90%; max-width:500px;">
-            <h2>Add Product</h2>
+            <h2>Product</h2>
             <form id="productForm">
                 <input type="hidden" id="editId">
-                <div class="form-group"><label>Name</label><input id="prodName" required></div>
-                <div class="form-group"><label>Code (SKU)</label><input id="prodCode"></div>
+                <div class="form-group"><label>Product Name*</label><input id="prodName" required></div>
+                <div class="form-group"><label>Product Code (SKU)</label><input id="prodCode"></div>
                 <div style="display:flex; gap:10px;">
                     <div class="form-group" style="flex:1;"><label>Category</label><select id="prodCategory"><option>Onesies</option><option>Dresses</option><option>Sets</option><option>Tops</option><option>Bottoms</option><option>Sleepwear</option></select></div>
                     <div class="form-group" style="flex:1;"><label>Condition</label><select id="prodCondition"><option>New</option><option>Second-Hand</option></select></div>
                 </div>
                 <div class="form-group"><label>Size</label><select id="prodSize"><option>Newborn</option><option>0-3M</option><option>3-6M</option><option>6-12M</option><option>12-18M</option></select></div>
+                <div class="form-group"><label>Supplier</label><input id="prodSupplier" placeholder="Supplier name"></div>
                 <div style="display:flex; gap:10px;">
-                    <div class="form-group" style="flex:1;"><label>Price (KSh)</label><input type="number" id="prodPrice" required></div>
-                    <div class="form-group" style="flex:1;"><label>Cost Price</label><input type="number" id="prodCost"></div>
-                    <div class="form-group" style="flex:1;"><label>Stock Qty</label><input type="number" id="prodQty" required></div>
+                    <div class="form-group" style="flex:1;"><label>Buying Price (Cost)</label><input type="number" id="prodCost" step="0.01"></div>
+                    <div class="form-group" style="flex:1;"><label>Selling Price*</label><input type="number" id="prodPrice" required step="0.01"></div>
                 </div>
+                <div class="form-group"><label>Stock Quantity*</label><input type="number" id="prodQty" required></div>
                 <button type="submit" class="btn btn-primary">Save</button>
                 <button type="button" onclick="document.getElementById('productModal').style.display='none'">Cancel</button>
             </form>
         </div>
     </div>
 
-    <!-- Checkout Modal -->
+    <!-- Expense Modal -->
+    <div id="expenseModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;">
+        <div style="background:white; padding:20px; border-radius:14px; width:90%; max-width:400px;">
+            <h2>Add Expense</h2>
+            <form id="expenseForm">
+                <input type="hidden" id="expEditId">
+                <div class="form-group"><label>Category</label><select id="expCategory"><option>Rent</option><option>Transport</option><option>Stock</option><option>Others</option></select></div>
+                <div class="form-group"><label>Amount (KSh)*</label><input type="number" id="expAmount" required step="0.01"></div>
+                <div class="form-group"><label>Description</label><input id="expDesc" placeholder="e.g., August rent"></div>
+                <div class="form-group"><label>Date</label><input type="date" id="expDate" required></div>
+                <button type="submit" class="btn btn-primary">Save</button>
+                <button type="button" onclick="document.getElementById('expenseModal').style.display='none'">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Checkout Modal (same) -->
     <div id="checkoutModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;">
         <div style="background:white; padding:20px; border-radius:14px; width:90%; max-width:400px;">
             <h2>Complete Sale</h2>
@@ -198,7 +234,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ==================== YOUR KEYS – REPLACE WITH REAL ONES ====================
+        // ============== CONFIG – REPLACE WITH YOUR KEYS ==============
        const firebaseConfig = {
   apiKey: "AIzaSyCVzD09N1Qz9raFZy5BnQQyEYanB-g_nK8",
   authDomain: "enkerra.firebaseapp.com",
@@ -211,7 +247,7 @@
         const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
         const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
 
-        // ==================== INIT ====================
+        // ============== INITIALISE ==============
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
@@ -220,11 +256,11 @@
         let cart = [];
         let allProducts = [];
         let allSalesCache = [];
+        let allExpensesCache = [];
         let currentUser = null;
         let chartInstance = null;
         let currentFilter = { year: new Date().getFullYear(), month: '', week: '' };
 
-        // Auth
         const loginScreen = document.getElementById('loginScreen');
         const appMain = document.getElementById('appMain');
 
@@ -262,6 +298,7 @@
         async function loadInitialData() {
             await loadProducts();
             await loadAllSales();
+            await loadAllExpenses();
             refreshAll();
         }
 
@@ -270,6 +307,7 @@
             pos: document.getElementById('screen-pos'),
             products: document.getElementById('screen-products'),
             stock: document.getElementById('screen-stock'),
+            expenses: document.getElementById('screen-expenses'),
             dashboard: document.getElementById('screen-dashboard')
         };
         function navigateTo(name) {
@@ -280,6 +318,7 @@
             if (name === 'pos') refreshPOS();
             if (name === 'products') refreshProductList();
             if (name === 'stock') refreshStock();
+            if (name === 'expenses') refreshExpenseList();
             if (name === 'dashboard') refreshDashboard();
         }
         function attachNavEvents() {
@@ -289,7 +328,7 @@
             document.getElementById('cartBtn').addEventListener('click', () => navigateTo('pos'));
         }
 
-        // Firestore helpers
+        // ============== FIRESTORE HELPERS ==============
         async function loadProducts() {
             const snap = await db.collection('products').get();
             allProducts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -299,6 +338,10 @@
             const snap = await db.collection('sales').orderBy('date', 'desc').get();
             allSalesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
+        async function loadAllExpenses() {
+            const snap = await db.collection('expenses').orderBy('date', 'desc').get();
+            allExpensesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
         function updateCategoryDropdowns() {
             const cats = [...new Set(allProducts.map(p => p.category))].sort();
             const html = '<option value="">All</option>' + cats.map(c => `<option>${c}</option>`).join('');
@@ -306,9 +349,10 @@
             document.getElementById('posCategoryFilter').innerHTML = html;
         }
 
-        // Products CRUD
+        // ============== PRODUCTS ==============
         function openProductForm(id = null) {
             document.getElementById('editId').value = id || '';
+            document.getElementById('productForm').reset();
             if (id) {
                 const p = allProducts.find(x => x.id === id);
                 document.getElementById('prodName').value = p.name;
@@ -316,25 +360,25 @@
                 document.getElementById('prodCategory').value = p.category;
                 document.getElementById('prodCondition').value = p.condition;
                 document.getElementById('prodSize').value = p.size;
+                document.getElementById('prodSupplier').value = p.supplier || '';
+                document.getElementById('prodCost').value = p.costPrice || '';
                 document.getElementById('prodPrice').value = p.price;
-                document.getElementById('prodCost').value = p.costPrice;
                 document.getElementById('prodQty').value = p.quantity;
-            } else {
-                document.getElementById('productForm').reset();
             }
             document.getElementById('productModal').style.display = 'flex';
         }
         document.getElementById('productForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const data = {
-                name: document.getElementById('prodName').value,
-                productCode: document.getElementById('prodCode').value,
+                name: document.getElementById('prodName').value.trim(),
+                productCode: document.getElementById('prodCode').value.trim(),
                 category: document.getElementById('prodCategory').value,
                 condition: document.getElementById('prodCondition').value,
                 size: document.getElementById('prodSize').value,
-                price: +document.getElementById('prodPrice').value,
-                costPrice: +document.getElementById('prodCost').value || 0,
-                quantity: +document.getElementById('prodQty').value
+                supplier: document.getElementById('prodSupplier').value.trim(),
+                costPrice: parseFloat(document.getElementById('prodCost').value) || 0,
+                price: parseFloat(document.getElementById('prodPrice').value),
+                quantity: parseInt(document.getElementById('prodQty').value)
             };
             const id = document.getElementById('editId').value;
             if (id) {
@@ -347,18 +391,30 @@
             refreshAll();
             showToast('Product saved');
         });
+
         function refreshProductList() {
             const search = (document.getElementById('productSearch')?.value || '').toLowerCase();
             const cat = document.getElementById('categoryFilter')?.value || '';
             let filtered = allProducts.filter(p => (!search || p.name.toLowerCase().includes(search)) && (!cat || p.category === cat));
             document.getElementById('productListGrid').innerHTML = filtered.map(p => `
                 <div class="product-card" onclick="openProductForm('${p.id}')">
-                    <strong>${p.name}</strong><br>KSh ${p.price}<br>Stock: ${p.quantity}
+                    <strong>${p.name}</strong><br>
+                    Buy: KSh ${p.costPrice||0} | Sell: KSh ${p.price}<br>
+                    Stock: ${p.quantity}
+                    ${p.supplier ? `<br><small>Supp: ${p.supplier}</small>` : ''}
                 </div>
             `).join('');
         }
 
-        // POS
+        function exportProductsCSV() {
+            let csv = "Name,Code,Category,Condition,Size,Supplier,Buying Price,Selling Price,Stock\n";
+            allProducts.forEach(p => {
+                csv += `"${p.name}","${p.productCode||''}","${p.category}","${p.condition}","${p.size}","${p.supplier||''}",${p.costPrice||0},${p.price},${p.quantity}\n`;
+            });
+            downloadCSV(csv, 'products.csv');
+        }
+
+        // ============== POS (Sale) ==============
         function refreshPOS() {
             const search = (document.getElementById('posSearch')?.value || '').toLowerCase();
             const cat = document.getElementById('posCategoryFilter')?.value || '';
@@ -370,6 +426,7 @@
             `).join('');
             updateCartUI();
         }
+
         function addToCart(pid) {
             const prod = allProducts.find(p => p.id === pid);
             if (!prod || prod.quantity <= 0) { showToast('Out of stock', 'error'); return; }
@@ -382,6 +439,7 @@
             }
             updateCartUI();
         }
+
         function updateCartUI() {
             const total = cart.reduce((s,i) => s + i.price * i.quantity, 0);
             document.getElementById('cartTotal').textContent = `KSh ${total.toFixed(2)}`;
@@ -421,12 +479,9 @@
                 paymentMethod: document.getElementById('checkoutPayment').value,
                 customerEmail: document.getElementById('checkoutEmail').value
             };
-            // deduct stock
             for (let i of cart) {
                 const prod = allProducts.find(p => p.id === i.productId);
-                if (prod) {
-                    await db.collection('products').doc(prod.id).update({ quantity: prod.quantity - i.quantity });
-                }
+                if (prod) await db.collection('products').doc(prod.id).update({ quantity: prod.quantity - i.quantity });
             }
             const docRef = await db.collection('sales').add(sale);
             cart = [];
@@ -436,7 +491,6 @@
             await loadAllSales();
             refreshAll();
             showToast('Sale completed!');
-            // send email if configured
             if (sale.customerEmail && EMAILJS_USER_ID !== "YOUR_EMAILJS_USER_ID") {
                 try {
                     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -453,7 +507,7 @@
             }
         }
 
-        // Stock
+        // ============== STOCK ==============
         function refreshStock() {
             const search = (document.getElementById('stockSearch')?.value || '').toLowerCase();
             let filtered = allProducts.filter(p => p.name.toLowerCase().includes(search));
@@ -477,7 +531,89 @@
             showToast('Stock updated');
         }
 
-        // Dashboard filters & chart
+        function exportStockCSV() {
+            let csv = "Name,Code,Category,Quantity\n";
+            allProducts.forEach(p => {
+                csv += `"${p.name}","${p.productCode||''}","${p.category}",${p.quantity}\n`;
+            });
+            downloadCSV(csv, 'stock.csv');
+        }
+
+        // ============== EXPENSES ==============
+        function openExpenseForm(id = null) {
+            document.getElementById('expEditId').value = id || '';
+            document.getElementById('expenseForm').reset();
+            if (id) {
+                const exp = allExpensesCache.find(e => e.id === id);
+                document.getElementById('expCategory').value = exp.category;
+                document.getElementById('expAmount').value = exp.amount;
+                document.getElementById('expDesc').value = exp.description || '';
+                document.getElementById('expDate').value = exp.date?.toDate?.().toISOString().split('T')[0] || new Date(exp.date.seconds*1000).toISOString().split('T')[0];
+                document.getElementById('expenseModal').style.display = 'flex';
+            }
+            document.getElementById('expenseModal').style.display = 'flex';
+        }
+
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                category: document.getElementById('expCategory').value,
+                amount: parseFloat(document.getElementById('expAmount').value),
+                description: document.getElementById('expDesc').value.trim(),
+                date: new Date(document.getElementById('expDate').value)
+            };
+            const id = document.getElementById('expEditId').value;
+            if (id) {
+                await db.collection('expenses').doc(id).set(data, { merge: true });
+            } else {
+                await db.collection('expenses').add({ ...data, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            }
+            document.getElementById('expenseModal').style.display = 'none';
+            await loadAllExpenses();
+            refreshExpenseList();
+            showToast('Expense saved');
+        });
+
+        function refreshExpenseList() {
+            const cat = document.getElementById('expenseFilterCategory').value;
+            const dateVal = document.getElementById('expenseFilterDate').value;
+            let filtered = allExpensesCache;
+            if (cat) filtered = filtered.filter(e => e.category === cat);
+            if (dateVal) {
+                const filterDate = new Date(dateVal);
+                filtered = filtered.filter(e => {
+                    const eDate = e.date?.toDate?.() || new Date(e.date.seconds*1000);
+                    return eDate.toDateString() === filterDate.toDateString();
+                });
+            }
+            const list = document.getElementById('expenseList');
+            if (filtered.length === 0) {
+                list.innerHTML = '<p>No expenses found.</p>';
+                return;
+            }
+            list.innerHTML = `<table class="table"><thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Description</th></tr></thead><tbody>
+                ${filtered.map(exp => {
+                    const d = exp.date?.toDate?.() || new Date(exp.date.seconds*1000);
+                    return `<tr>
+                        <td>${d.toLocaleDateString()}</td>
+                        <td>${exp.category}</td>
+                        <td>KSh ${exp.amount.toFixed(2)}</td>
+                        <td>${exp.description||''}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody></table>`;
+        }
+
+        function exportExpensesCSV() {
+            let csv = "Date,Category,Amount,Description\n";
+            allExpensesCache.forEach(exp => {
+                const d = exp.date?.toDate?.() || new Date(exp.date.seconds*1000);
+                csv += `${d.toLocaleDateString()},"${exp.category}",${exp.amount},"${exp.description||''}"\n`;
+            });
+            downloadCSV(csv, 'expenses.csv');
+        }
+
+        // ============== DASHBOARD ==============
         function populateYearFilter() {
             const yearSelect = document.getElementById('filterYear');
             let years = allSalesCache.map(s => s.date ? new Date(s.date.seconds * 1000).getFullYear() : null).filter(Boolean);
@@ -494,12 +630,8 @@
         }
         function getFilteredSales() {
             let sales = allSalesCache.filter(s => s.date);
-            if (currentFilter.year) {
-                sales = sales.filter(s => new Date(s.date.seconds * 1000).getFullYear() === currentFilter.year);
-            }
-            if (currentFilter.month) {
-                sales = sales.filter(s => (new Date(s.date.seconds * 1000).getMonth() + 1) === parseInt(currentFilter.month));
-            }
+            if (currentFilter.year) sales = sales.filter(s => new Date(s.date.seconds * 1000).getFullYear() === currentFilter.year);
+            if (currentFilter.month) sales = sales.filter(s => (new Date(s.date.seconds * 1000).getMonth() + 1) === parseInt(currentFilter.month));
             if (currentFilter.week) {
                 sales = sales.filter(s => {
                     const d = new Date(s.date.seconds * 1000);
@@ -519,7 +651,6 @@
             document.getElementById('statRevenue').textContent = `KSh ${revenue.toFixed(0)}`;
             document.getElementById('statProducts').textContent = allProducts.length;
             document.getElementById('statLowStock').textContent = allProducts.filter(p => p.quantity <=5).length;
-
             const dailyMap = {};
             sales.forEach(s => {
                 const d = new Date(s.date.seconds * 1000).toLocaleDateString();
@@ -527,45 +658,33 @@
             });
             const labels = Object.keys(dailyMap).sort();
             const data = labels.map(l => dailyMap[l]);
-
             if (chartInstance) chartInstance.destroy();
             const ctx = document.getElementById('salesChart').getContext('2d');
             chartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Revenue (KSh)',
-                        data: data,
-                        backgroundColor: '#e8789a'
-                    }]
-                },
+                data: { labels, datasets: [{ label: 'Revenue (KSh)', data, backgroundColor: '#e8789a' }] },
                 options: { scales: { y: { beginAtZero: true } } }
             });
         }
-        function exportCSV() {
+        function exportSalesCSV() {
             const sales = getFilteredSales();
             let csv = "Date,Time,Receipt ID,Items,Total,Payment Method,Email\n";
             sales.forEach(s => {
                 const d = new Date(s.date.seconds * 1000);
                 const itemsStr = s.items.map(i => `${i.name} x${i.quantity}`).join('; ');
-                csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},${s.id},"${itemsStr}",${s.total},${s.paymentMethod || ''},${s.customerEmail || ''}\n`;
+                csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},${s.id},"${itemsStr}",${s.total},${s.paymentMethod||''},${s.customerEmail||''}\n`;
             });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `sales_export_${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-            showToast('CSV downloaded');
+            downloadCSV(csv, 'sales.csv');
         }
 
         function refreshAll() {
             refreshPOS();
             refreshProductList();
             refreshStock();
+            refreshExpenseList();
             refreshDashboard();
         }
+
         function showToast(msg, type='') {
             const container = document.getElementById('toastContainer');
             const div = document.createElement('div');
@@ -575,19 +694,25 @@
             setTimeout(() => div.remove(), 2000);
         }
 
-        // Search filters
+        function downloadCSV(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        }
+
+        // Search listeners
         document.getElementById('productSearch')?.addEventListener('input', refreshProductList);
         document.getElementById('categoryFilter')?.addEventListener('change', refreshProductList);
         document.getElementById('posSearch')?.addEventListener('input', refreshPOS);
         document.getElementById('posCategoryFilter')?.addEventListener('change', refreshPOS);
         document.getElementById('stockSearch')?.addEventListener('input', refreshStock);
 
-        // Register service worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(() => console.log('SW registered'))
-                    .catch(err => console.error('SW failed', err));
+                navigator.serviceWorker.register('/sw.js').catch(()=>{});
             });
         }
     </script>
