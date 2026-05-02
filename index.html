@@ -263,7 +263,6 @@
             <h2>Complete Sale</h2>
             <div class="form-group"><label>Customer Email</label><input id="checkoutEmail" placeholder="email@example.com"></div>
             <div class="form-group"><label>Payment</label><select id="checkoutPayment"><option>Cash</option><option>M-Pesa</option><option>Card</option></select></div>
-            <!-- ===== NEW DATE FIELD ===== -->
             <div class="form-group">
                 <label>Sale Date</label>
                 <input type="date" id="checkoutDate" required>
@@ -292,14 +291,14 @@
 
     <script>
         // ==================== YOUR KEYS – REPLACE WITH REAL VALUES ====================
-       const firebaseConfig = {
-  apiKey: "AIzaSyCVzD09N1Qz9raFZy5BnQQyEYanB-g_nK8",
-  authDomain: "enkerra.firebaseapp.com",
-  projectId: "enkerra",
-  storageBucket: "enkerra.firebasestorage.app",
-  messagingSenderId: "993565069998",
-  appId: "1:993565069998:web:11be051df6e56fb11e133f"
-};
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "...",
+            appId: "..."
+        };
 
         const EMAILJS_USER_ID = "YOUR_EMAILJS_USER_ID";
         const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
@@ -513,7 +512,6 @@
         // ==================== CHECKOUT & RECEIPT (WITH DATE) ====================
         document.getElementById('checkoutBtn').addEventListener('click', () => {
             document.getElementById('checkoutTotal').textContent = document.getElementById('cartTotal').textContent;
-            // Pre-fill today's date
             document.getElementById('checkoutDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('checkoutModal').classList.add('active');
         });
@@ -522,16 +520,15 @@
             const checkoutDate = document.getElementById('checkoutDate').value;
             if (!checkoutDate) { showToast('Please select a date', 'error'); return; }
 
-            const selectedDate = new Date(checkoutDate + 'T00:00:00'); // local midnight
+            const selectedDate = new Date(checkoutDate + 'T00:00:00');
             const sale = {
                 items: cart.map(i => ({ name: i.name, price: i.price, costPrice: i.costPrice || 0, quantity: i.quantity })),
                 total: cart.reduce((s,i) => s + i.price * i.quantity, 0),
-                date: selectedDate, // JS Date, will be converted to Firestore Timestamp
+                date: selectedDate,
                 paymentMethod: document.getElementById('checkoutPayment').value,
                 customerEmail: document.getElementById('checkoutEmail').value
             };
 
-            // Deduct stock
             const batch = db.batch();
             for (let i of cart) {
                 const prod = allProducts.find(p => p.id === i.productId);
@@ -541,8 +538,6 @@
                 }
             }
             await batch.commit();
-
-            // Save sale with user-selected date as Firestore Timestamp
             const docRef = await db.collection('sales').add({
                 ...sale,
                 date: firebase.firestore.Timestamp.fromDate(selectedDate)
@@ -553,7 +548,6 @@
             lastReceiptData = sale;
             viewReceipt(sale);
 
-            // Optional email receipt
             if (sale.customerEmail && EMAILJS_USER_ID !== "YOUR_EMAILJS_USER_ID") {
                 try {
                     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -571,7 +565,6 @@
         }
 
         function viewReceipt(sale) {
-            // Handle both Firestore Timestamp and plain JS Date
             const date = sale.date?.seconds ? new Date(sale.date.seconds * 1000) : new Date(sale.date);
             const serial = String(sale.id).padStart(6, '0');
             document.getElementById('receiptSerial').textContent = `Receipt #: ${serial}`;
@@ -626,7 +619,7 @@
             await loadAllData(); refreshAll(); showToast('Stock updated');
         }
 
-        // ==================== EXPENSES ====================
+        // ==================== EXPENSES (WITH EDIT BUTTON) ====================
         function openExpenseForm(id = null) {
             document.getElementById('expEditId').value = id || '';
             document.getElementById('expenseForm').reset();
@@ -670,10 +663,16 @@
             }
             const list = document.getElementById('expenseList');
             if (filtered.length === 0) { list.innerHTML = '<p>No expenses found.</p>'; return; }
-            list.innerHTML = `<table class="table"><thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Description</th></tr></thead><tbody>
+            list.innerHTML = `<table class="table"><thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Description</th><th>Action</th></tr></thead><tbody>
                 ${filtered.map(exp => {
                     const d = exp.date?.toDate?.() || new Date(exp.date.seconds*1000);
-                    return `<tr><td>${d.toLocaleDateString()}</td><td>${exp.category}</td><td>KSh ${exp.amount.toFixed(2)}</td><td>${exp.description||''}</td></tr>`;
+                    return `<tr>
+                        <td>${d.toLocaleDateString()}</td>
+                        <td>${exp.category}</td>
+                        <td>KSh ${exp.amount.toFixed(2)}</td>
+                        <td>${exp.description||''}</td>
+                        <td><button class="btn btn-sm" onclick="openExpenseForm('${exp.id}')">✏️ Edit</button></td>
+                    </tr>`;
                 }).join('')}
             </tbody></table>`;
         }
