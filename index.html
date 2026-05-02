@@ -16,7 +16,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <style>
-        /* Same core styles, slightly expanded for new tab */
         :root {
             --primary: #e8789a; --primary-dark: #c45d7e; --bg: #fdf6f9; --surface: #fff;
             --text: #3d2c33; --text-secondary: #6b5b63; --border: #f0d8e0;
@@ -219,7 +218,7 @@
         </div>
     </div>
 
-    <!-- Checkout Modal (same) -->
+    <!-- Checkout Modal -->
     <div id="checkoutModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;">
         <div style="background:white; padding:20px; border-radius:14px; width:90%; max-width:400px;">
             <h2>Complete Sale</h2>
@@ -234,8 +233,8 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ============== CONFIG – REPLACE WITH YOUR KEYS ==============
-       const firebaseConfig = {
+        // ============== CONFIG – REPLACE WITH YOUR REAL FIREBASE KEYS ==============
+      const firebaseConfig = {
   apiKey: "AIzaSyCVzD09N1Qz9raFZy5BnQQyEYanB-g_nK8",
   authDomain: "enkerra.firebaseapp.com",
   projectId: "enkerra",
@@ -243,6 +242,7 @@
   messagingSenderId: "993565069998",
   appId: "1:993565069998:web:11be051df6e56fb11e133f"
 };
+
         const EMAILJS_USER_ID = "YOUR_EMAILJS_USER_ID";
         const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
         const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
@@ -549,7 +549,6 @@
                 document.getElementById('expAmount').value = exp.amount;
                 document.getElementById('expDesc').value = exp.description || '';
                 document.getElementById('expDate').value = exp.date?.toDate?.().toISOString().split('T')[0] || new Date(exp.date.seconds*1000).toISOString().split('T')[0];
-                document.getElementById('expenseModal').style.display = 'flex';
             }
             document.getElementById('expenseModal').style.display = 'flex';
         }
