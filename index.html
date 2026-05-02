@@ -172,7 +172,6 @@
                     <button class="btn btn-outline btn-sm" onclick="applyDashboardFilter()">Apply</button>
                     <button class="btn btn-sm" onclick="exportSalesCSV()" style="margin-left:auto;">📥 Export CSV</button>
                 </div>
-                <!-- ===== UPDATED STATS GRID WITH STOCK VALUE ===== -->
                 <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:16px;">
                     <div class="stat-card"><div class="stat-value" id="statTodaySales">0</div><div class="stat-label">Sales Count</div></div>
                     <div class="stat-card"><div class="stat-value" id="statRevenue">KSh 0</div><div class="stat-label">Revenue</div></div>
@@ -180,7 +179,6 @@
                     <div class="stat-card"><div class="stat-value" id="statAvgDaily">KSh 0</div><div class="stat-label">Avg Daily</div></div>
                     <div class="stat-card"><div class="stat-value" id="statProducts">0</div><div class="stat-label">Products</div></div>
                     <div class="stat-card warning"><div class="stat-value" id="statLowStock">0</div><div class="stat-label">Low Stock</div></div>
-                    <!-- NEW: Stock Value card -->
                     <div class="stat-card stock-value"><div class="stat-value" id="statStockValue">KSh 0</div><div class="stat-label">Stock Value</div></div>
                 </div>
                 <canvas id="salesChart" style="width:100%; height:250px;"></canvas>
@@ -259,12 +257,17 @@
         </div>
     </div>
 
-    <!-- Checkout Modal -->
+    <!-- Checkout Modal (with Date) -->
     <div id="checkoutModal" class="modal-overlay">
         <div class="modal">
             <h2>Complete Sale</h2>
             <div class="form-group"><label>Customer Email</label><input id="checkoutEmail" placeholder="email@example.com"></div>
             <div class="form-group"><label>Payment</label><select id="checkoutPayment"><option>Cash</option><option>M-Pesa</option><option>Card</option></select></div>
+            <!-- ===== NEW DATE FIELD ===== -->
+            <div class="form-group">
+                <label>Sale Date</label>
+                <input type="date" id="checkoutDate" required>
+            </div>
             <p>Total: <strong id="checkoutTotal"></strong></p>
             <button class="btn btn-success" onclick="completeSale()">✅ Complete</button>
             <button onclick="closeModal('checkoutModal')">Cancel</button>
@@ -289,7 +292,7 @@
 
     <script>
         // ==================== YOUR KEYS – REPLACE WITH REAL VALUES ====================
-     const firebaseConfig = {
+       const firebaseConfig = {
   apiKey: "AIzaSyCVzD09N1Qz9raFZy5BnQQyEYanB-g_nK8",
   authDomain: "enkerra.firebaseapp.com",
   projectId: "enkerra",
@@ -507,19 +510,28 @@
         };
         window.clearCart = () => { cart = []; updateCartUI(); };
 
-        // ==================== CHECKOUT & RECEIPT ====================
+        // ==================== CHECKOUT & RECEIPT (WITH DATE) ====================
         document.getElementById('checkoutBtn').addEventListener('click', () => {
             document.getElementById('checkoutTotal').textContent = document.getElementById('cartTotal').textContent;
+            // Pre-fill today's date
+            document.getElementById('checkoutDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('checkoutModal').classList.add('active');
         });
+
         async function completeSale() {
+            const checkoutDate = document.getElementById('checkoutDate').value;
+            if (!checkoutDate) { showToast('Please select a date', 'error'); return; }
+
+            const selectedDate = new Date(checkoutDate + 'T00:00:00'); // local midnight
             const sale = {
                 items: cart.map(i => ({ name: i.name, price: i.price, costPrice: i.costPrice || 0, quantity: i.quantity })),
                 total: cart.reduce((s,i) => s + i.price * i.quantity, 0),
-                date: new Date(),
+                date: selectedDate, // JS Date, will be converted to Firestore Timestamp
                 paymentMethod: document.getElementById('checkoutPayment').value,
                 customerEmail: document.getElementById('checkoutEmail').value
             };
+
+            // Deduct stock
             const batch = db.batch();
             for (let i of cart) {
                 const prod = allProducts.find(p => p.id === i.productId);
@@ -529,16 +541,26 @@
                 }
             }
             await batch.commit();
-            const docRef = await db.collection('sales').add({ ...sale, date: firebase.firestore.FieldValue.serverTimestamp() });
+
+            // Save sale with user-selected date as Firestore Timestamp
+            const docRef = await db.collection('sales').add({
+                ...sale,
+                date: firebase.firestore.Timestamp.fromDate(selectedDate)
+            });
             sale.id = docRef.id;
             cart = []; updateCartUI(); closeModal('checkoutModal');
             await loadAllData(); refreshAll(); showToast('Sale completed!');
-            lastReceiptData = sale; viewReceipt(sale);
+            lastReceiptData = sale;
+            viewReceipt(sale);
+
+            // Optional email receipt
             if (sale.customerEmail && EMAILJS_USER_ID !== "YOUR_EMAILJS_USER_ID") {
                 try {
                     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-                        to_email: sale.customerEmail, receipt_id: sale.id,
-                        date: new Date().toLocaleDateString(), time: new Date().toLocaleTimeString(),
+                        to_email: sale.customerEmail,
+                        receipt_id: sale.id,
+                        date: selectedDate.toLocaleDateString('en-KE'),
+                        time: selectedDate.toLocaleTimeString('en-KE'),
                         payment_method: sale.paymentMethod,
                         items_table: sale.items.map(i => `${i.name} x${i.quantity} = KSh ${(i.price*i.quantity).toFixed(2)}`).join('<br>'),
                         total: sale.total.toFixed(2)
@@ -547,8 +569,10 @@
                 } catch(e) { showToast('Email failed', 'error'); }
             }
         }
+
         function viewReceipt(sale) {
-            const date = new Date(sale.date?.seconds ? sale.date.seconds * 1000 : sale.date);
+            // Handle both Firestore Timestamp and plain JS Date
+            const date = sale.date?.seconds ? new Date(sale.date.seconds * 1000) : new Date(sale.date);
             const serial = String(sale.id).padStart(6, '0');
             document.getElementById('receiptSerial').textContent = `Receipt #: ${serial}`;
             const receiptHTML = `
@@ -556,7 +580,7 @@
                     <strong style="font-size:1.1rem;">Enkerra ang' Baby Shop</strong><br>
                     <small>Baby Cloth Store</small>
                 </div><hr>
-                <div>Date: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
+                <div>Date: ${date.toLocaleDateString('en-KE')} ${date.toLocaleTimeString('en-KE')}</div>
                 <div>Payment: ${sale.paymentMethod || 'N/A'}</div>
                 ${sale.customerEmail ? `<div>Email: ${sale.customerEmail}</div>` : ''}<hr>
                 <table style="width:100%;">${sale.items.map(i => `<tr><td>${i.name}</td><td>x${i.quantity}</td><td style="text-align:right;">KSh ${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}</table><hr>
@@ -565,6 +589,7 @@
             document.getElementById('receiptBody').innerHTML = receiptHTML;
             document.getElementById('receiptModal').classList.add('active');
         }
+
         function printReceipt() {
             const content = document.getElementById('receiptBody').innerHTML;
             const serial = document.getElementById('receiptSerial').textContent;
@@ -653,7 +678,7 @@
             </tbody></table>`;
         }
 
-        // ==================== DASHBOARD (INCLUDES STOCK VALUE) ====================
+        // ==================== DASHBOARD ====================
         function populateYearFilter() {
             const yearSelect = document.getElementById('filterYear');
             let years = allSalesCache.map(s => s.date ? new Date(s.date.seconds * 1000).getFullYear() : null).filter(Boolean);
@@ -697,8 +722,6 @@
             const allDays = [...new Set(allSalesCache.map(s => new Date(s.date.seconds * 1000).toLocaleDateString()))];
             const totalAll = allSalesCache.reduce((sum, s) => sum + s.total, 0);
             const avgDaily = allDays.length ? (totalAll / allDays.length) : 0;
-
-            // ===== STOCK VALUE (Buying Price × Quantity) =====
             const stockValue = allProducts.reduce((sum, p) => sum + ((p.costPrice || 0) * (p.quantity || 0)), 0);
 
             document.getElementById('statTodaySales').textContent = count;
