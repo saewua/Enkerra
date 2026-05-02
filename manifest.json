@@ -1,1 +1,18 @@
-
+{
+  "name": "Enkerra ang' Baby Shop",
+  "short_name": "Enkerra Baby",
+  "description": "Baby Cloth Shop - POS, Stock & Sales",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fdf6f9",
+  "theme_color": "#e8789a",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23fdf6f9' width='100' height='100' rx='20'/><text y='.75em' font-size='65' text-anchor='middle' x='50'>👶</text></svg>",
+      "sizes": "100x100",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
