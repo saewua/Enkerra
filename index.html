@@ -42,7 +42,11 @@
         .form-group label { display:block; font-weight:600; font-size:0.8rem; margin-bottom:4px; }
         .form-group input, .form-group select { width:100%; padding:10px; border:2px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); outline:none; }
         .product-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap:10px; }
-        .product-card { background:var(--surface); border-radius:var(--radius-sm); padding:10px; cursor:pointer; border:2px solid var(--border); }
+        .product-card { background:var(--surface); border-radius:var(--radius-sm); padding:10px; cursor:pointer; border:3px solid transparent; transition:0.2s; }
+        .product-card:hover { border-color: var(--primary); }
+        .product-card.stock-high { border-color: var(--success); }
+        .product-card.stock-medium { border-color: var(--warning); }
+        .product-card.stock-out { border-color: var(--danger); opacity:0.6; pointer-events: none; }
         .cart-panel { background:var(--surface); border-radius:var(--radius); padding:14px; margin-top:12px; }
         .toast-container { position:fixed; top:16px; right:16px; z-index:9999; }
         .toast { background:#333; color:white; padding:12px 18px; border-radius:8px; margin-bottom:8px; animation: slideIn 0.3s; }
@@ -64,6 +68,7 @@
         .stat-card.warning .stat-value { color: var(--warning); }
         .stat-card.net { border-left: 4px solid var(--success); }
         .stat-card.stock-value { border-left: 4px solid #2196F3; }
+        .daily-sales-list { max-height: 200px; overflow-y: auto; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -116,6 +121,11 @@
                         <span>Total:</span><span id="cartTotal">KSh 0.00</span>
                     </div>
                     <button class="btn btn-primary" style="width:100%;" id="checkoutBtn" disabled>💳 Checkout</button>
+                </div>
+                <!-- Daily Sales List (new) -->
+                <div class="card" style="margin-top:16px;">
+                    <h3 style="font-size:0.9rem; margin-bottom:8px;">📋 Today's Sales</h3>
+                    <div id="dailySalesList" class="daily-sales-list"></div>
                 </div>
             </div>
 
@@ -185,6 +195,17 @@
                 <div style="margin-top: 16px;">
                     <h3 style="font-size:0.9rem; margin-bottom:8px;">📅 Monthly Revenue vs Expenses</h3>
                     <canvas id="monthlyChart" style="width:100%; height:250px;"></canvas>
+                </div>
+                <!-- New: Top Products Tables -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                    <div class="card">
+                        <h3 style="font-size:0.9rem; margin-bottom:8px;">🏆 Most Sold</h3>
+                        <div id="mostSoldTable"></div>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size:0.9rem; margin-bottom:8px;">💎 Most Profitable</h3>
+                        <div id="mostProfitableTable"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -257,17 +278,32 @@
         </div>
     </div>
 
-    <!-- Checkout Modal (with Date) -->
+    <!-- Checkout Modal (updated with phone & discount) -->
     <div id="checkoutModal" class="modal-overlay">
         <div class="modal">
             <h2>Complete Sale</h2>
             <div class="form-group"><label>Customer Email</label><input id="checkoutEmail" placeholder="email@example.com"></div>
+            <div class="form-group"><label>Phone Number</label><input type="tel" id="checkoutPhone" placeholder="07XX XXX XXX"></div>
             <div class="form-group"><label>Payment</label><select id="checkoutPayment"><option>Cash</option><option>M-Pesa</option><option>Card</option></select></div>
             <div class="form-group">
                 <label>Sale Date</label>
                 <input type="date" id="checkoutDate" required>
             </div>
-            <p>Total: <strong id="checkoutTotal"></strong></p>
+            <div style="display:flex; gap:8px;">
+                <div class="form-group" style="flex:1;">
+                    <label>Discount Type</label>
+                    <select id="discountType">
+                        <option value="none">None</option>
+                        <option value="percent">Percent (%)</option>
+                        <option value="fixed">Fixed (KSh)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>Discount Value</label>
+                    <input type="number" id="discountValue" step="0.01" min="0" value="0" disabled>
+                </div>
+            </div>
+            <p>Total: <strong id="checkoutTotal"></strong> | Final: <strong id="finalTotal"></strong></p>
             <button class="btn btn-success" onclick="completeSale()">✅ Complete</button>
             <button onclick="closeModal('checkoutModal')">Cancel</button>
         </div>
@@ -291,7 +327,7 @@
 
     <script>
         // ==================== YOUR KEYS – REPLACE WITH REAL VALUES ====================
-        const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyCVzD09N1Qz9raFZy5BnQQyEYanB-g_nK8",
   authDomain: "enkerra.firebaseapp.com",
   projectId: "enkerra",
@@ -397,7 +433,7 @@
             if (screens[name]) screens[name].classList.add('active');
             document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
             document.querySelector(`[data-screen="${name}"]`)?.classList.add('active');
-            if (name === 'pos') refreshPOS();
+            if (name === 'pos') { refreshPOS(); refreshDailySales(); }
             if (name === 'products') refreshProductList();
             if (name === 'stock') refreshStock();
             if (name === 'expenses') refreshExpenseList();
@@ -408,7 +444,7 @@
             document.getElementById('cartBtn').addEventListener('click', () => navigateTo('pos'));
         }
 
-        // ==================== PRODUCTS ====================
+        // ==================== PRODUCTS (with stock colour) ====================
         function openProductForm(id = null) {
             document.getElementById('editId').value = id || '';
             document.getElementById('productForm').reset();
@@ -448,12 +484,19 @@
             closeModal('productModal');
             await loadAllData(); refreshAll(); showToast('Product saved');
         });
+
+        function getStockClass(quantity) {
+            if (quantity <= 0) return 'stock-out';
+            if (quantity <= 10) return 'stock-medium';
+            return 'stock-high';
+        }
+
         function refreshProductList() {
             const search = (document.getElementById('productSearch')?.value || '').toLowerCase();
             const cat = document.getElementById('categoryFilter')?.value || '';
             let filtered = allProducts.filter(p => (!search || p.name.toLowerCase().includes(search)) && (!cat || p.category === cat));
             document.getElementById('productListGrid').innerHTML = filtered.map(p => `
-                <div class="product-card" onclick="openProductForm('${p.id}')">
+                <div class="product-card ${getStockClass(p.quantity)}" onclick="openProductForm('${p.id}')">
                     <strong>${p.name}</strong><br>
                     Buy: KSh ${p.costPrice||0} | Sell: KSh ${p.price}<br>
                     Stock: ${p.quantity} ${p.size ? '| '+p.size : ''}
@@ -467,11 +510,12 @@
             const cat = document.getElementById('posCategoryFilter')?.value || '';
             let filtered = allProducts.filter(p => (!search || p.name.toLowerCase().includes(search)) && (!cat || p.category === cat));
             document.getElementById('posProductGrid').innerHTML = filtered.map(p => `
-                <div class="product-card" onclick="addToCart('${p.id}')">
+                <div class="product-card ${getStockClass(p.quantity)}" onclick="addToCart('${p.id}')">
                     <strong>${p.name}</strong><br>KSh ${p.price}<br>Qty: ${p.quantity} ${p.size ? '| '+p.size : ''}
                 </div>`).join('');
             updateCartUI();
         }
+
         function addToCart(pid) {
             const prod = allProducts.find(p => p.id === pid);
             if (!prod || prod.quantity <= 0) { showToast('Out of stock', 'error'); return; }
@@ -484,6 +528,7 @@
             }
             updateCartUI();
         }
+
         function updateCartUI() {
             const total = cart.reduce((s,i) => s + i.price * i.quantity, 0);
             document.getElementById('cartTotal').textContent = `KSh ${total.toFixed(2)}`;
@@ -509,24 +554,86 @@
         };
         window.clearCart = () => { cart = []; updateCartUI(); };
 
-        // ==================== CHECKOUT & RECEIPT (WITH DATE) ====================
+        // Daily sales list
+        function refreshDailySales() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const dailySales = allSalesCache.filter(s => {
+                const d = s.date?.seconds ? new Date(s.date.seconds * 1000) : new Date(s.date);
+                return d >= today;
+            }).slice(0, 5);
+            const list = document.getElementById('dailySalesList');
+            if (dailySales.length === 0) {
+                list.innerHTML = '<p>No sales today.</p>';
+            } else {
+                list.innerHTML = dailySales.map(s => {
+                    const d = s.date?.seconds ? new Date(s.date.seconds * 1000) : new Date(s.date);
+                    return `<div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);">
+                        <span>#${String(s.id).padStart(4,'0')}</span>
+                        <span>KSh ${s.total.toFixed(2)}</span>
+                        <span>${d.toLocaleTimeString('en-KE', {hour:'2-digit', minute:'2-digit'})}</span>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // ==================== CHECKOUT & RECEIPT (with discount) ====================
         document.getElementById('checkoutBtn').addEventListener('click', () => {
-            document.getElementById('checkoutTotal').textContent = document.getElementById('cartTotal').textContent;
+            const baseTotal = cart.reduce((s,i) => s + i.price * i.quantity, 0);
+            document.getElementById('checkoutTotal').textContent = `KSh ${baseTotal.toFixed(2)}`;
             document.getElementById('checkoutDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('discountType').value = 'none';
+            document.getElementById('discountValue').value = '0';
+            document.getElementById('discountValue').disabled = true;
+            updateFinalTotal();
             document.getElementById('checkoutModal').classList.add('active');
         });
+
+        // Discount calculation
+        document.getElementById('discountType').addEventListener('change', (e) => {
+            const valInput = document.getElementById('discountValue');
+            if (e.target.value === 'none') {
+                valInput.disabled = true;
+                valInput.value = '0';
+            } else {
+                valInput.disabled = false;
+            }
+            updateFinalTotal();
+        });
+        document.getElementById('discountValue').addEventListener('input', updateFinalTotal);
+
+        function updateFinalTotal() {
+            const baseTotal = cart.reduce((s,i) => s + i.price * i.quantity, 0);
+            const type = document.getElementById('discountType').value;
+            const val = parseFloat(document.getElementById('discountValue').value) || 0;
+            let discount = 0;
+            if (type === 'percent') discount = baseTotal * (val / 100);
+            else if (type === 'fixed') discount = val;
+            const final = Math.max(0, baseTotal - discount);
+            document.getElementById('finalTotal').textContent = `KSh ${final.toFixed(2)}`;
+        }
 
         async function completeSale() {
             const checkoutDate = document.getElementById('checkoutDate').value;
             if (!checkoutDate) { showToast('Please select a date', 'error'); return; }
-
             const selectedDate = new Date(checkoutDate + 'T00:00:00');
+            const baseTotal = cart.reduce((s,i) => s + i.price * i.quantity, 0);
+            const type = document.getElementById('discountType').value;
+            const val = parseFloat(document.getElementById('discountValue').value) || 0;
+            let discount = 0;
+            if (type === 'percent') discount = baseTotal * (val / 100);
+            else if (type === 'fixed') discount = val;
+            const finalTotal = Math.max(0, baseTotal - discount);
+
             const sale = {
                 items: cart.map(i => ({ name: i.name, price: i.price, costPrice: i.costPrice || 0, quantity: i.quantity })),
-                total: cart.reduce((s,i) => s + i.price * i.quantity, 0),
+                total: baseTotal,
+                discount: discount,
+                finalTotal: finalTotal,
                 date: selectedDate,
                 paymentMethod: document.getElementById('checkoutPayment').value,
-                customerEmail: document.getElementById('checkoutEmail').value
+                customerEmail: document.getElementById('checkoutEmail').value,
+                customerPhone: document.getElementById('checkoutPhone').value
             };
 
             const batch = db.batch();
@@ -557,7 +664,7 @@
                         time: selectedDate.toLocaleTimeString('en-KE'),
                         payment_method: sale.paymentMethod,
                         items_table: sale.items.map(i => `${i.name} x${i.quantity} = KSh ${(i.price*i.quantity).toFixed(2)}`).join('<br>'),
-                        total: sale.total.toFixed(2)
+                        total: finalTotal.toFixed(2)
                     });
                     showToast('Receipt emailed!', 'success');
                 } catch(e) { showToast('Email failed', 'error'); }
@@ -575,9 +682,12 @@
                 </div><hr>
                 <div>Date: ${date.toLocaleDateString('en-KE')} ${date.toLocaleTimeString('en-KE')}</div>
                 <div>Payment: ${sale.paymentMethod || 'N/A'}</div>
+                ${sale.customerPhone ? `<div>Phone: ${sale.customerPhone}</div>` : ''}
                 ${sale.customerEmail ? `<div>Email: ${sale.customerEmail}</div>` : ''}<hr>
                 <table style="width:100%;">${sale.items.map(i => `<tr><td>${i.name}</td><td>x${i.quantity}</td><td style="text-align:right;">KSh ${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('')}</table><hr>
-                <div style="text-align:right; font-weight:700;">TOTAL: KSh ${sale.total.toFixed(2)}</div>
+                <div style="text-align:right; font-weight:700;">Subtotal: KSh ${sale.total.toFixed(2)}</div>
+                ${sale.discount ? `<div style="text-align:right;">Discount: KSh ${sale.discount.toFixed(2)}</div>` : ''}
+                <div style="text-align:right; font-weight:700;">TOTAL: KSh ${(sale.finalTotal || sale.total).toFixed(2)}</div>
                 <div style="text-align:center; margin-top:12px; font-size:0.75rem; color:#888;">Thank you for shopping with us!</div>`;
             document.getElementById('receiptBody').innerHTML = receiptHTML;
             document.getElementById('receiptModal').classList.add('active');
@@ -619,7 +729,7 @@
             await loadAllData(); refreshAll(); showToast('Stock updated');
         }
 
-        // ==================== EXPENSES (WITH EDIT BUTTON) ====================
+        // ==================== EXPENSES (with edit) ====================
         function openExpenseForm(id = null) {
             document.getElementById('expEditId').value = id || '';
             document.getElementById('expenseForm').reset();
@@ -677,7 +787,7 @@
             </tbody></table>`;
         }
 
-        // ==================== DASHBOARD ====================
+        // ==================== DASHBOARD (with top products) ====================
         function populateYearFilter() {
             const yearSelect = document.getElementById('filterYear');
             let years = allSalesCache.map(s => s.date ? new Date(s.date.seconds * 1000).getFullYear() : null).filter(Boolean);
@@ -710,7 +820,7 @@
             populateYearFilter();
             const sales = getFilteredSales();
             const count = sales.length;
-            const revenue = sales.reduce((sum, s) => sum + s.total, 0);
+            const revenue = sales.reduce((sum, s) => sum + (s.finalTotal || s.total), 0);
             let netProfit = 0;
             sales.forEach(s => {
                 s.items.forEach(item => {
@@ -719,7 +829,7 @@
                 });
             });
             const allDays = [...new Set(allSalesCache.map(s => new Date(s.date.seconds * 1000).toLocaleDateString()))];
-            const totalAll = allSalesCache.reduce((sum, s) => sum + s.total, 0);
+            const totalAll = allSalesCache.reduce((sum, s) => sum + (s.finalTotal || s.total), 0);
             const avgDaily = allDays.length ? (totalAll / allDays.length) : 0;
             const stockValue = allProducts.reduce((sum, p) => sum + ((p.costPrice || 0) * (p.quantity || 0)), 0);
 
@@ -733,7 +843,7 @@
 
             // Daily line chart
             const dailyMap = {};
-            sales.forEach(s => { const d = new Date(s.date.seconds * 1000).toLocaleDateString(); dailyMap[d] = (dailyMap[d] || 0) + s.total; });
+            sales.forEach(s => { const d = new Date(s.date.seconds * 1000).toLocaleDateString(); dailyMap[d] = (dailyMap[d] || 0) + (s.finalTotal || s.total); });
             const labels = Object.keys(dailyMap).sort();
             const data = labels.map(l => dailyMap[l]);
             if (chartInstance) chartInstance.destroy();
@@ -750,7 +860,7 @@
             const monthExpenses = Array(12).fill(0);
             allSalesCache.forEach(s => {
                 const d = new Date(s.date.seconds * 1000);
-                if (d.getFullYear() === selectedYear) monthRevenue[d.getMonth()] += s.total;
+                if (d.getFullYear() === selectedYear) monthRevenue[d.getMonth()] += (s.finalTotal || s.total);
             });
             allExpensesCache.forEach(exp => {
                 const d = exp.date?.toDate?.() || new Date(exp.date.seconds*1000);
@@ -770,6 +880,33 @@
                 },
                 options: { responsive: true, scales: { y: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } }
             });
+
+            // ---- Most Sold & Most Profitable Products ----
+            const productSales = {}; // { productName: { qty, profit } }
+            allSalesCache.forEach(sale => {
+                sale.items.forEach(item => {
+                    if (!productSales[item.name]) {
+                        productSales[item.name] = { qty: 0, profit: 0 };
+                    }
+                    productSales[item.name].qty += item.quantity;
+                    productSales[item.name].profit += (item.price - (item.costPrice || 0)) * item.quantity;
+                });
+            });
+
+            const soldSorted = Object.entries(productSales).sort((a,b) => b[1].qty - a[1].qty).slice(0,10);
+            const profitSorted = Object.entries(productSales).sort((a,b) => b[1].profit - a[1].profit).slice(0,10);
+
+            document.getElementById('mostSoldTable').innerHTML = soldSorted.length ? `
+                <table class="table">
+                    <thead><tr><th>#</th><th>Item</th><th>Qty</th></tr></thead>
+                    <tbody>${soldSorted.map(([name, data], i) => `<tr><td>${i+1}</td><td>${name}</td><td>${data.qty}</td></tr>`).join('')}</tbody>
+                </table>` : '<p>No data</p>';
+
+            document.getElementById('mostProfitableTable').innerHTML = profitSorted.length ? `
+                <table class="table">
+                    <thead><tr><th>#</th><th>Item</th><th>Profit</th></tr></thead>
+                    <tbody>${profitSorted.map(([name, data], i) => `<tr><td>${i+1}</td><td>${name}</td><td>KSh ${data.profit.toFixed(2)}</td></tr>`).join('')}</tbody>
+                </table>` : '<p>No data</p>';
         }
 
         // ==================== CSV EXPORTS ====================
@@ -793,11 +930,11 @@
         }
         function exportSalesCSV() {
             const sales = getFilteredSales();
-            let csv = "Date,Time,Receipt ID,Items,Total,Payment Method,Email\n";
+            let csv = "Date,Time,Receipt ID,Items,Total,Discount,Final,Payment,Phone,Email\n";
             sales.forEach(s => {
                 const d = new Date(s.date.seconds * 1000);
                 const itemsStr = s.items.map(i => `${i.name} x${i.quantity}`).join('; ');
-                csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},${s.id},"${itemsStr}",${s.total},${s.paymentMethod||''},${s.customerEmail||''}\n`;
+                csv += `${d.toLocaleDateString()},${d.toLocaleTimeString()},${s.id},"${itemsStr}",${s.total},${s.discount||0},${s.finalTotal||s.total},${s.paymentMethod||''},${s.customerPhone||''},${s.customerEmail||''}\n`;
             });
             downloadCSV(csv, 'sales.csv');
         }
@@ -807,7 +944,7 @@
         }
 
         function refreshAll() {
-            refreshPOS(); refreshProductList(); refreshStock(); refreshExpenseList(); refreshDashboard();
+            refreshPOS(); refreshProductList(); refreshStock(); refreshExpenseList(); refreshDailySales(); refreshDashboard();
         }
         function showToast(msg, type='') {
             const container = document.getElementById('toastContainer');
